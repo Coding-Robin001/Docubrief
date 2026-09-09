@@ -17,7 +17,7 @@ export default async function AuthPage() {
   const session = await getSafeSession();
 
   if (session) {
-    redirect("/dashboard");
+    redirect("/auth-dashboard");
   }
 
   return <AuthClientPage />;
