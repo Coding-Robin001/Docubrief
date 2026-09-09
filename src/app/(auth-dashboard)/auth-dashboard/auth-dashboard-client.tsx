@@ -4,6 +4,7 @@ import { signOut } from "../../../actions/auth-actions";
 import { auth } from "@/lib/auth";
 import { useRouter } from "next/navigation";
 import Image from "next/image";
+import Link from "next/link";
 import { useState } from "react";
 
 type Session = typeof auth.$Infer.Session;
@@ -91,12 +92,12 @@ const AuthDashboardClient = ({ session }: { session: Session | null }) => {
               </p>
 
               {!user?.emailVerified && (
-                <a
+                <Link
                   href="/verify-email"
                   className="px-3 py-1 rounded-md bg-blue-500 text-white text-sm font-medium hover:bg-blue-400 transition-colors"
                 >
                   Verify email →
-                </a>
+                </Link>
               )}
             </div>
           </div>
