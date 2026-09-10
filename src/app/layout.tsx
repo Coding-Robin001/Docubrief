@@ -11,10 +11,13 @@ export const metadata: Metadata = {
 export default function RootLayout({ children }: LayoutProps<"/">) {
   return (
     <html lang="en">
-      <NavbarWrapper />
       <body>
+        <NavbarWrapper />
         <NextTopLoader />
         <main>{children}</main>
+        <footer>
+          footer
+        </footer>
       </body>
     </html>
   );

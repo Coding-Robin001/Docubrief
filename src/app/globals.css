@@ -1,4 +1,41 @@
 @import "tailwindcss";
 
 
-body{}
+/* ============================================
+   Add this to the TOP of your app/globals.css
+   This is the theme for the whole app, not just
+   the landing page — reuse these vars everywhere.
+   ============================================ */
+
+/* @import url('https://fonts.googleapis.com/css2?family=Fraunces:opsz,wght@9..144,400;9..144,500;9..144,600;9..144,700&family=Inter:wght@400;500;600;700;800&display=swap'); */
+
+:root {
+  /* Backgrounds */
+  --color-bg: #FFFFFF;
+  --color-bg-soft: #F5F9F4;
+  --color-bg-deep: #0F2E22;
+
+  /* Text */
+  --color-ink: #12241D;
+  --color-ink-soft: #4B5B54;
+
+  /* Brand green */
+  --color-forest: #1B4332;
+  --color-forest-dark: #0F2E22;
+  --color-moss: #52796F;
+  --color-mist: #D8E5DD;
+
+  /* The one accent: a literal highlighter */
+  --color-highlight: #F5B700;
+  --color-highlight-soft: #FFF3C4;
+
+  --color-border: #E3E8E1;
+}
+
+.font-display {
+  font-family: 'Fraunces', serif;
+}
+
+.font-body {
+  font-family: 'Inter', sans-serif;
+}
