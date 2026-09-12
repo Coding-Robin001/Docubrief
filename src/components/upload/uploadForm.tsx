@@ -1,47 +1,369 @@
-import { UploadCloud, FileText, ArrowRight } from "lucide-react";
+"use client";
+
+import { useEffect, useRef, useState } from "react";
+import { z } from "zod";
+import { motion, AnimatePresence } from "framer-motion";
+import {
+  UploadCloud,
+  FileText,
+  ArrowRight,
+  AlertCircle,
+  CheckCircle2,
+  Loader2,
+  Sparkles,
+  X,
+} from "lucide-react";
+import { useUploadThing } from "@/lib/uploadThing";
+import { authClient } from "@/lib/auth-client";
+
+const MAX_SIZE_MB = 20;
+const MAX_SIZE_BYTES = MAX_SIZE_MB * 1024 * 1024;
+const SUCCESS_TOAST_MS = 3000;
+
+const fileSchema = z
+  .instanceof(File)
+  .refine((file) => file.type === "application/pdf", {
+    message: "Invalid file format, PDFs only.",
+  })
+  .refine((file) => file.size <= MAX_SIZE_BYTES, {
+    message: `That file is over ${MAX_SIZE_MB}MB — try a smaller PDF.`,
+  });
+
+function formatSize(bytes: number) {
+  const mb = bytes / (1024 * 1024);
+  return mb >= 1 ? `${mb.toFixed(1)} MB` : `${Math.round(bytes / 1024)} KB`;
+}
+
+// idle -> uploading -> success (brief) -> processing (until the AI
+// job elsewhere marks this done — that wiring comes later)
+type Phase = "idle" | "uploading" | "success" | "processing";
 
 export default function UploadForm() {
+  const [file, setFile] = useState<File | null>(null);
+  const [error, setError] = useState<string | null>(null);
+  const [isDragging, setIsDragging] = useState(false);
+  const [progress, setProgress] = useState(0);
+  const [phase, setPhase] = useState<Phase>("idle");
+  const inputRef = useRef<HTMLInputElement>(null);
+  const successTimeout = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const { data: session } = authClient.useSession();
+
+  const { startUpload, isUploading } = useUploadThing("pdfUploader", {
+    onUploadBegin: () => {
+      setProgress(0);
+      setPhase("uploading");
+    },
+    onUploadProgress: (p) => {
+      setProgress(p);
+    },
+    onClientUploadComplete: (res) => {
+      console.log("Upload complete:", res);
+      setProgress(100);
+      setPhase("success");
+    },
+    onUploadError: (uploadError) => {
+      setError(uploadError.message);
+      setProgress(0);
+      setPhase("idle");
+    },
+  });
+
+  // success toast auto-advances to the processing toast after a beat
+  useEffect(() => {
+    if (phase === "success") {
+      successTimeout.current = setTimeout(() => {
+        setPhase("processing");
+      }, SUCCESS_TOAST_MS);
+    }
+    return () => {
+      if (successTimeout.current) clearTimeout(successTimeout.current);
+    };
+  }, [phase]);
+
+  const validateAndSetFile = (candidate: File | undefined | null) => {
+    if (!candidate) return;
+
+    const result = fileSchema.safeParse(candidate);
+    if (!result.success) {
+      setError(
+        result.error.issues[0]?.message ?? "That file couldn't be used.",
+      );
+      setFile(null);
+      if (inputRef.current) inputRef.current.value = "";
+      return;
+    }
+
+    setError(null);
+    setProgress(0);
+    setPhase("idle");
+    setFile(candidate);
+  };
+
+  const handleInputChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+    validateAndSetFile(e.target.files?.[0]);
+  };
+
+  const handleDrop = (e: React.DragEvent<HTMLLabelElement>) => {
+    e.preventDefault();
+    setIsDragging(false);
+    if (isUploading || phase !== "idle") return;
+    validateAndSetFile(e.dataTransfer.files?.[0]);
+  };
+
+  const handleDragOver = (e: React.DragEvent<HTMLLabelElement>) => {
+    e.preventDefault();
+    if (isUploading || phase !== "idle") return;
+    setIsDragging(true);
+  };
+
+  const handleDragLeave = () => setIsDragging(false);
+
+  const clearFile = () => {
+    if (isUploading) return;
+    setFile(null);
+    setError(null);
+    setProgress(0);
+    setPhase("idle");
+    if (inputRef.current) inputRef.current.value = "";
+  };
+
+  const handleSubmit = async () => {
+    if (!file) {
+      setError("Choose a PDF to upload first.");
+      return;
+    }
+
+    if (!session?.user) {
+      setError("Please sign in before uploading a PDF.");
+      return;
+    }
+
+    setError(null);
+
+    const response = await startUpload([file]);
+    if (!response) return;
+  };
+
+  const isDone = phase === "success" || phase === "processing";
+  const isLocked = isUploading || isDone;
+
   return (
-    <div className="mt-12 rounded-3xl border border-[var(--color-border)] bg-white p-6 text-left shadow-[0_30px_60px_-25px_rgba(18,36,29,0.25)] sm:p-8">
-      <span className="text-xs font-semibold uppercase tracking-wide text-[var(--color-moss)]">
-        Upload PDF
-      </span>
+    <>
+      <div className="mt-12 rounded-3xl border border-[var(--color-border)] bg-white p-6 text-left shadow-[0_30px_60px_-25px_rgba(18,36,29,0.25)] sm:p-8">
+        <span className="text-xs font-semibold uppercase tracking-wide text-[var(--color-moss)]">
+          Upload PDF
+        </span>
 
-      <label
-        htmlFor="pdf-upload"
-        className="group mt-4 flex cursor-pointer flex-col items-center justify-center rounded-2xl border-2 border-dashed border-[var(--color-border)] bg-[var(--color-bg-soft)] px-6 py-14 text-center transition-colors hover:border-[var(--color-moss)]"
-      >
-        <span className="flex h-14 w-14 items-center justify-center rounded-full bg-white shadow-[0_10px_25px_-12px_rgba(18,36,29,0.3)] transition-transform group-hover:-translate-y-0.5">
-          <UploadCloud size={24} className="text-[var(--color-forest)]" />
-        </span>
-        <span className="font-display mt-5 text-lg text-[var(--color-ink)]">
-          Drag &amp; drop your PDF here
-        </span>
-        <span className="mt-1.5 text-sm text-[var(--color-ink-soft)]">
-          or{" "}
-          <span className="font-semibold text-[var(--color-forest)] underline underline-offset-2">
-            browse your files
-          </span>
-        </span>
-        <input id="pdf-upload" type="file" accept=".pdf" className="hidden" />
-      </label>
+        <label
+          htmlFor="pdf-upload"
+          onDrop={handleDrop}
+          onDragOver={handleDragOver}
+          onDragLeave={handleDragLeave}
+          className={`group mt-4 flex flex-col items-center justify-center rounded-2xl border-2 border-dashed px-6 py-14 text-center transition-colors ${
+            isLocked
+              ? "cursor-default border-[var(--color-forest)] bg-[var(--color-bg-soft)]"
+              : "cursor-pointer"
+          } ${
+            !isLocked && isDragging
+              ? "border-[var(--color-forest)] bg-[var(--color-mist)]/40"
+              : !isLocked && file
+                ? "border-[var(--color-forest)] bg-[var(--color-bg-soft)]"
+                : !isLocked
+                  ? "border-[var(--color-border)] bg-[var(--color-bg-soft)] hover:border-[var(--color-moss)]"
+                  : ""
+          }`}
+        >
+          {isUploading ? (
+            <>
+              <span className="relative flex h-14 w-14 items-center justify-center rounded-full bg-white shadow-[0_10px_25px_-12px_rgba(18,36,29,0.3)]">
+                <Loader2 size={22} className="animate-spin text-[var(--color-forest)]" />
+              </span>
+              <span className="font-display mt-5 max-w-full truncate px-4 text-lg text-[var(--color-ink)]">
+                {file?.name}
+              </span>
+              <span className="mt-1.5 text-sm text-[var(--color-ink-soft)]">
+                Uploading… {progress}%
+              </span>
+              <div className="mt-4 h-1.5 w-full max-w-[220px] overflow-hidden rounded-full bg-[var(--color-border)]">
+                <div
+                  className="h-full rounded-full bg-[var(--color-forest)] transition-all duration-300 ease-out"
+                  style={{ width: `${progress}%` }}
+                />
+              </div>
+            </>
+          ) : file ? (
+            <>
+              <span className="flex h-14 w-14 items-center justify-center rounded-full bg-white shadow-[0_10px_25px_-12px_rgba(18,36,29,0.3)]">
+                <CheckCircle2 size={24} className="text-[var(--color-forest)]" />
+              </span>
+              <span className="font-display mt-5 max-w-full truncate px-4 text-lg text-[var(--color-ink)]">
+                {file.name}
+              </span>
+              <span className="mt-1.5 text-sm text-[var(--color-ink-soft)]">
+                {isDone
+                  ? "Uploaded"
+                  : `${formatSize(file.size)} · ready to upload`}
+              </span>
+              {!isDone && (
+                <button
+                  type="button"
+                  onClick={(e) => {
+                    e.preventDefault();
+                    clearFile();
+                  }}
+                  className="mt-4 inline-flex items-center gap-1 rounded-full border border-[var(--color-border)] px-3 py-1.5 text-xs font-medium text-[var(--color-ink-soft)] transition-colors hover:border-[var(--color-moss)] hover:text-[var(--color-ink)]"
+                >
+                  <X size={12} />
+                  Remove
+                </button>
+              )}
+            </>
+          ) : (
+            <>
+              <span className="flex h-14 w-14 items-center justify-center rounded-full bg-white shadow-[0_10px_25px_-12px_rgba(18,36,29,0.3)] transition-transform group-hover:-translate-y-0.5">
+                <UploadCloud size={24} className="text-[var(--color-forest)]" />
+              </span>
+              <span className="font-display mt-5 text-lg text-[var(--color-ink)]">
+                Drag &amp; drop your PDF here
+              </span>
+              <span className="mt-1.5 text-sm text-[var(--color-ink-soft)]">
+                or{" "}
+                <span className="font-semibold text-[var(--color-forest)] underline underline-offset-2">
+                  browse your files
+                </span>
+              </span>
+            </>
+          )}
 
-      <div className="mt-4 flex items-center gap-1.5 text-xs text-[var(--color-ink-soft)]">
-        <FileText size={13} />
-        PDF only, up to 25MB
+          <input
+            ref={inputRef}
+            id="pdf-upload"
+            type="file"
+            accept="application/pdf"
+            className="hidden"
+            disabled={isLocked}
+            onChange={handleInputChange}
+          />
+        </label>
+
+        {error ? (
+          <div className="mt-4 flex items-start gap-2 rounded-xl border border-red-200 bg-red-50 px-4 py-3 text-sm text-red-700">
+            <AlertCircle size={16} className="mt-0.5 shrink-0" />
+            {error}
+          </div>
+        ) : (
+          <div className="mt-4 flex items-center gap-1.5 text-xs text-[var(--color-ink-soft)]">
+            <FileText size={13} />
+            PDF only, up to {MAX_SIZE_MB}MB
+          </div>
+        )}
+
+        <button
+          type="button"
+          onClick={handleSubmit}
+          disabled={!file || isLocked}
+          className="mt-6 flex w-full items-center justify-center gap-2 rounded-full bg-[var(--color-forest)] px-6 py-3.5 text-[15px] font-semibold text-white transition-colors hover:bg-[var(--color-forest-dark)] disabled:cursor-not-allowed disabled:bg-[var(--color-border)] disabled:text-[var(--color-ink-soft)]"
+        >
+          {isUploading ? (
+            <>
+              <Loader2 size={17} className="animate-spin" />
+              Uploading… {progress}%
+            </>
+          ) : (
+            <>
+              Upload your PDF
+              <ArrowRight size={17} />
+            </>
+          )}
+        </button>
+
+        <p className="mt-4 text-center text-xs text-[var(--color-ink-soft)]">
+          Your file is processed securely and never shared.
+        </p>
       </div>
 
-      <button
-        type="button"
-        className="mt-6 flex w-full items-center justify-center gap-2 rounded-full bg-[var(--color-forest)] px-6 py-3.5 text-[15px] font-semibold text-white transition-colors hover:bg-[var(--color-forest-dark)]"
-      >
-        Upload your PDF
-        <ArrowRight size={17} />
-      </button>
+      {/* floating post-upload notifications */}
+      <div className="pointer-events-none fixed inset-x-0 bottom-6 z-50 flex justify-center px-4">
+        <AnimatePresence mode="wait">
+          {phase === "success" && (
+            <motion.div
+              key="success"
+              initial={{ opacity: 0, y: 16, scale: 0.96 }}
+              animate={{ opacity: 1, y: 0, scale: 1 }}
+              exit={{ opacity: 0, y: -8, scale: 0.97 }}
+              transition={{ duration: 0.35, ease: [0.22, 1, 0.36, 1] }}
+              className="pointer-events-auto relative w-full max-w-sm overflow-hidden rounded-2xl border border-[var(--color-border)] bg-white p-4 shadow-[0_20px_45px_-20px_rgba(18,36,29,0.35)]"
+            >
+              <div className="flex items-start gap-3">
+                <span className="flex h-9 w-9 shrink-0 items-center justify-center rounded-full bg-[var(--color-mist)]/60">
+                  <CheckCircle2 size={18} className="text-[var(--color-forest)]" />
+                </span>
+                <div>
+                  <p className="font-display text-[15px] text-[var(--color-ink)]">
+                    Upload complete
+                  </p>
+                  <p className="mt-0.5 text-sm text-[var(--color-ink-soft)]">
+                    Your PDF is safely uploaded.
+                  </p>
+                </div>
+              </div>
+              {/* shrinking timer bar, bridges into the next toast */}
+              <motion.div
+                className="absolute bottom-0 left-0 h-[3px] bg-[var(--color-forest)]"
+                initial={{ width: "100%" }}
+                animate={{ width: "0%" }}
+                transition={{ duration: SUCCESS_TOAST_MS / 1000, ease: "linear" }}
+              />
+            </motion.div>
+          )}
 
-      <p className="mt-4 text-center text-xs text-[var(--color-ink-soft)]">
-        Your file is processed securely and never shared.
-      </p>
-    </div>
+          {phase === "processing" && (
+            <motion.div
+              key="processing"
+              initial={{ opacity: 0, y: 16, scale: 0.96 }}
+              animate={{ opacity: 1, y: 0, scale: 1 }}
+              exit={{ opacity: 0, y: -8, scale: 0.97 }}
+              transition={{ duration: 0.35, ease: [0.22, 1, 0.36, 1] }}
+              className="pointer-events-auto w-full max-w-sm rounded-2xl bg-[var(--color-bg-deep)] p-4 shadow-[0_25px_50px_-20px_rgba(15,46,34,0.55)]"
+            >
+              <div className="flex items-start gap-3">
+                <span className="relative flex h-9 w-9 shrink-0 items-center justify-center rounded-full bg-white/10">
+                  <motion.span
+                    animate={{ scale: [1, 1.15, 1], opacity: [0.7, 1, 0.7] }}
+                    transition={{ duration: 1.6, repeat: Infinity, ease: "easeInOut" }}
+                  >
+                    <Sparkles size={17} className="text-[var(--color-highlight)]" />
+                  </motion.span>
+                </span>
+                <div>
+                  <p className="font-display text-[15px] text-white">
+                    AI is working its magic
+                  </p>
+                  <p className="mt-0.5 text-sm text-[var(--color-mist)]">
+                    Preparing your PDF review — hang tight.
+                  </p>
+                  {/* three-dot "still working" indicator */}
+                  <div className="mt-2 flex items-center gap-1">
+                    {[0, 1, 2].map((i) => (
+                      <motion.span
+                        key={i}
+                        className="h-1.5 w-1.5 rounded-full bg-[var(--color-highlight)]"
+                        animate={{ opacity: [0.3, 1, 0.3] }}
+                        transition={{
+                          duration: 1.1,
+                          repeat: Infinity,
+                          delay: i * 0.18,
+                          ease: "easeInOut",
+                        }}
+                      />
+                    ))}
+                  </div>
+                </div>
+              </div>
+            </motion.div>
+          )}
+        </AnimatePresence>
+      </div>
+    </>
   );
 }
