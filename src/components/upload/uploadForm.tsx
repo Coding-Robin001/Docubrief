@@ -15,6 +15,7 @@ import {
 } from "lucide-react";
 import { useUploadThing } from "@/lib/uploadThing";
 import { authClient } from "@/lib/auth-client";
+import { generatePdfSummary } from "@/actions/upload-actions";
 
 const MAX_SIZE_MB = 20;
 const MAX_SIZE_BYTES = MAX_SIZE_MB * 1024 * 1024;
@@ -142,6 +143,9 @@ export default function UploadForm() {
 
     const response = await startUpload([file]);
     if (!response) return;
+
+    const summary = await generatePdfSummary(response);
+    console.log(summary);
   };
 
   const isDone = phase === "success" || phase === "processing";
@@ -176,7 +180,10 @@ export default function UploadForm() {
           {isUploading ? (
             <>
               <span className="relative flex h-14 w-14 items-center justify-center rounded-full bg-white shadow-[0_10px_25px_-12px_rgba(18,36,29,0.3)]">
-                <Loader2 size={22} className="animate-spin text-[var(--color-forest)]" />
+                <Loader2
+                  size={22}
+                  className="animate-spin text-[var(--color-forest)]"
+                />
               </span>
               <span className="font-display mt-5 max-w-full truncate px-4 text-lg text-[var(--color-ink)]">
                 {file?.name}
@@ -194,7 +201,10 @@ export default function UploadForm() {
           ) : file ? (
             <>
               <span className="flex h-14 w-14 items-center justify-center rounded-full bg-white shadow-[0_10px_25px_-12px_rgba(18,36,29,0.3)]">
-                <CheckCircle2 size={24} className="text-[var(--color-forest)]" />
+                <CheckCircle2
+                  size={24}
+                  className="text-[var(--color-forest)]"
+                />
               </span>
               <span className="font-display mt-5 max-w-full truncate px-4 text-lg text-[var(--color-ink)]">
                 {file.name}
@@ -296,7 +306,10 @@ export default function UploadForm() {
             >
               <div className="flex items-start gap-3">
                 <span className="flex h-9 w-9 shrink-0 items-center justify-center rounded-full bg-[var(--color-mist)]/60">
-                  <CheckCircle2 size={18} className="text-[var(--color-forest)]" />
+                  <CheckCircle2
+                    size={18}
+                    className="text-[var(--color-forest)]"
+                  />
                 </span>
                 <div>
                   <p className="font-display text-[15px] text-[var(--color-ink)]">
@@ -312,7 +325,10 @@ export default function UploadForm() {
                 className="absolute bottom-0 left-0 h-[3px] bg-[var(--color-forest)]"
                 initial={{ width: "100%" }}
                 animate={{ width: "0%" }}
-                transition={{ duration: SUCCESS_TOAST_MS / 1000, ease: "linear" }}
+                transition={{
+                  duration: SUCCESS_TOAST_MS / 1000,
+                  ease: "linear",
+                }}
               />
             </motion.div>
           )}
@@ -330,9 +346,16 @@ export default function UploadForm() {
                 <span className="relative flex h-9 w-9 shrink-0 items-center justify-center rounded-full bg-white/10">
                   <motion.span
                     animate={{ scale: [1, 1.15, 1], opacity: [0.7, 1, 0.7] }}
-                    transition={{ duration: 1.6, repeat: Infinity, ease: "easeInOut" }}
+                    transition={{
+                      duration: 1.6,
+                      repeat: Infinity,
+                      ease: "easeInOut",
+                    }}
                   >
-                    <Sparkles size={17} className="text-[var(--color-highlight)]" />
+                    <Sparkles
+                      size={17}
+                      className="text-[var(--color-highlight)]"
+                    />
                   </motion.span>
                 </span>
                 <div>
