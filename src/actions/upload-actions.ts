@@ -2,34 +2,27 @@
 
 import { fetchAndExtractPdfText } from "@/lib/langchain";
 
-export async function generatePdfSummary(
-  uploadResponse: [
-    {
-      serverData: {
-        userId: string;
-        file: {
-          url: string;
-          name: string;
-        };
-      };
-    },
-  ],
-) {
-  if (!uploadResponse) return;
+type UploadResponse = {
+  ufsUrl: string;
+  name: string;
+};
 
-  const {
-    serverData: {
-      userId,
-      file: { url: pdfUrl, name: fileName },
-    },
-  } = uploadResponse[0];
+export async function generatePdfSummary(uploadResponse: UploadResponse[]) {
+  if (!uploadResponse?.length) return;
+
+  const file = uploadResponse[0];
+
+  const pdfUrl = file.ufsUrl;
+  const fileName = file.name;
 
   if (!pdfUrl) return;
 
   try {
     const pdfText = await fetchAndExtractPdfText(pdfUrl);
+
+    console.log("File:", fileName);
     console.log(pdfText);
   } catch (error) {
-    console.log(error);
+    console.error(error);
   }
 }
