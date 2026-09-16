@@ -144,8 +144,10 @@ export default function UploadForm() {
     const response = await startUpload([file]);
     if (!response) return;
 
-    const summary = await generatePdfSummary(response);
-    console.log(summary);
+    const result = await generatePdfSummary(response);
+    console.log(result);
+
+    const { data = null, message = null } = result || {};
   };
 
   const isDone = phase === "success" || phase === "processing";
