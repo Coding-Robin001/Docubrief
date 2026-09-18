@@ -1,6 +1,7 @@
 "use client";
 
 import { useEffect, useRef, useState } from "react";
+import { useRouter } from "next/navigation";
 import { z } from "zod";
 import { motion, AnimatePresence } from "framer-motion";
 import {
@@ -20,6 +21,8 @@ import { generatePdfSummary } from "@/actions/upload-actions";
 const MAX_SIZE_MB = 20;
 const MAX_SIZE_BYTES = MAX_SIZE_MB * 1024 * 1024;
 const SUCCESS_TOAST_MS = 3000;
+const COMPLETE_REDIRECT_MS = 1500;
+const ERROR_TOAST_MS = 6000;
 
 const fileSchema = z
   .instanceof(File)
@@ -35,18 +38,25 @@ function formatSize(bytes: number) {
   return mb >= 1 ? `${mb.toFixed(1)} MB` : `${Math.round(bytes / 1024)} KB`;
 }
 
-// idle -> uploading -> success (brief) -> processing (until the AI
-// job elsewhere marks this done — that wiring comes later)
-type Phase = "idle" | "uploading" | "success" | "processing";
+// idle -> uploading -> success (brief) -> processing (AI summarizing)
+// -> complete (redirects) | error (bounces back to idle)
+type Phase =
+  | "idle"
+  | "uploading"
+  | "success"
+  | "processing"
+  | "complete"
+  | "error";
 
 export default function UploadForm() {
+  const router = useRouter();
   const [file, setFile] = useState<File | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [isDragging, setIsDragging] = useState(false);
   const [progress, setProgress] = useState(0);
   const [phase, setPhase] = useState<Phase>("idle");
   const inputRef = useRef<HTMLInputElement>(null);
-  const successTimeout = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const toastTimeout = useRef<ReturnType<typeof setTimeout> | null>(null);
   const { data: session } = authClient.useSession();
 
   const { startUpload, isUploading } = useUploadThing("pdfUploader", {
@@ -57,28 +67,34 @@ export default function UploadForm() {
     onUploadProgress: (p) => {
       setProgress(p);
     },
-    onClientUploadComplete: (res) => {
-      console.log("Upload complete:", res);
+    onClientUploadComplete: () => {
       setProgress(100);
       setPhase("success");
     },
     onUploadError: (uploadError) => {
       setError(uploadError.message);
       setProgress(0);
-      setPhase("idle");
+      setPhase("error");
     },
   });
 
-  // success toast auto-advances to the processing toast after a beat
+  // success toast auto-advances to the "AI is working" toast, which
+  // then hands off to generatePdfSummary in handleSubmit below
   useEffect(() => {
     if (phase === "success") {
-      successTimeout.current = setTimeout(() => {
+      toastTimeout.current = setTimeout(() => {
         setPhase("processing");
       }, SUCCESS_TOAST_MS);
     }
+    if (phase === "error") {
+      toastTimeout.current = setTimeout(() => {
+        setPhase("idle");
+      }, ERROR_TOAST_MS);
+    }
     return () => {
-      if (successTimeout.current) clearTimeout(successTimeout.current);
+      if (toastTimeout.current) clearTimeout(toastTimeout.current);
     };
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [phase]);
 
   const validateAndSetFile = (candidate: File | undefined | null) => {
@@ -107,13 +123,13 @@ export default function UploadForm() {
   const handleDrop = (e: React.DragEvent<HTMLLabelElement>) => {
     e.preventDefault();
     setIsDragging(false);
-    if (isUploading || phase !== "idle") return;
+    if (isUploading || (phase !== "idle" && phase !== "error")) return;
     validateAndSetFile(e.dataTransfer.files?.[0]);
   };
 
   const handleDragOver = (e: React.DragEvent<HTMLLabelElement>) => {
     e.preventDefault();
-    if (isUploading || phase !== "idle") return;
+    if (isUploading || (phase !== "idle" && phase !== "error")) return;
     setIsDragging(true);
   };
 
@@ -128,30 +144,97 @@ export default function UploadForm() {
     if (inputRef.current) inputRef.current.value = "";
   };
 
+  // this is the part that can take a while (server-side model calls,
+  // retries, fallbacks) — errors here get their own clean toast
+  // instead of the inline banner, since the person may have scrolled
+  // or looked away while it was working
+  const runSummaryGeneration = async (
+    uploadResponse?: Parameters<typeof generatePdfSummary>[0],
+  ) => {
+    if (!uploadResponse) return;
+
+    try {
+      const result = await generatePdfSummary(uploadResponse);
+
+      if (!result?.data) {
+        setError(result?.message ?? "Failed to generate summary. Please try again.");
+        setPhase("error");
+        return;
+      }
+
+      setPhase("complete");
+
+      // TODO: once generatePdfSummary persists the summary and returns
+      // its id, swap this for the real field (e.g. result.id).
+      const summaryId = (result as { id?: string }).id;
+      setTimeout(() => {
+        if (summaryId) {
+          router.push(`/summary/${summaryId}`);
+        }
+      }, COMPLETE_REDIRECT_MS);
+    } catch (err) {
+      console.error("Summary generation failed:", err);
+      setError(
+        err instanceof Error
+          ? err.message
+          : "Something went wrong while summarizing your PDF. Please try again.",
+      );
+      setPhase("error");
+    }
+  };
+
   const handleSubmit = async () => {
     if (!file) {
       setError("Choose a PDF to upload first.");
+      setPhase("error");
       return;
     }
 
     if (!session?.user) {
       setError("Please sign in before uploading a PDF.");
+      setPhase("error");
       return;
     }
 
     setError(null);
 
-    const response = await startUpload([file]);
-    if (!response) return;
-
-    const result = await generatePdfSummary(response);
-    console.log(result);
-
-    const { data = null, message = null } = result || {};
+    try {
+      const response = await startUpload([file]);
+      if (!response) {
+        setError("Upload failed. Please try again.");
+        setPhase("error");
+        return;
+      }
+      // handoff to summary generation happens automatically once the
+      // success toast finishes, via the effect above — but we still
+      // need the upload response to pass along, so stash it there
+      pendingUploadResponse.current = response;
+    } catch (err) {
+      console.error("Upload failed:", err);
+      setError(
+        err instanceof Error ? err.message : "Upload failed. Please try again.",
+      );
+      setPhase("error");
+    }
   };
 
-  const isDone = phase === "success" || phase === "processing";
-  const isLocked = isUploading || isDone;
+  const pendingUploadResponse = useRef<
+    Parameters<typeof generatePdfSummary>[0] | undefined
+  >(undefined);
+
+  useEffect(() => {
+    if (phase === "processing" && pendingUploadResponse.current) {
+      void runSummaryGeneration(pendingUploadResponse.current);
+      pendingUploadResponse.current = undefined;
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [phase]);
+
+  const isLocked =
+    isUploading ||
+    phase === "success" ||
+    phase === "processing" ||
+    phase === "complete";
 
   return (
     <>
@@ -212,11 +295,11 @@ export default function UploadForm() {
                 {file.name}
               </span>
               <span className="mt-1.5 text-sm text-[var(--color-ink-soft)]">
-                {isDone
+                {isLocked
                   ? "Uploaded"
                   : `${formatSize(file.size)} · ready to upload`}
               </span>
-              {!isDone && (
+              {!isLocked && (
                 <button
                   type="button"
                   onClick={(e) => {
@@ -258,16 +341,18 @@ export default function UploadForm() {
           />
         </label>
 
-        {error ? (
+        {error && phase !== "error" ? (
           <div className="mt-4 flex items-start gap-2 rounded-xl border border-red-200 bg-red-50 px-4 py-3 text-sm text-red-700">
             <AlertCircle size={16} className="mt-0.5 shrink-0" />
             {error}
           </div>
         ) : (
-          <div className="mt-4 flex items-center gap-1.5 text-xs text-[var(--color-ink-soft)]">
-            <FileText size={13} />
-            PDF only, up to {MAX_SIZE_MB}MB
-          </div>
+          !error && (
+            <div className="mt-4 flex items-center gap-1.5 text-xs text-[var(--color-ink-soft)]">
+              <FileText size={13} />
+              PDF only, up to {MAX_SIZE_MB}MB
+            </div>
+          )
         )}
 
         <button
@@ -322,7 +407,6 @@ export default function UploadForm() {
                   </p>
                 </div>
               </div>
-              {/* shrinking timer bar, bridges into the next toast */}
               <motion.div
                 className="absolute bottom-0 left-0 h-[3px] bg-[var(--color-forest)]"
                 initial={{ width: "100%" }}
@@ -367,7 +451,6 @@ export default function UploadForm() {
                   <p className="mt-0.5 text-sm text-[var(--color-mist)]">
                     Preparing your PDF review — hang tight.
                   </p>
-                  {/* three-dot "still working" indicator */}
                   <div className="mt-2 flex items-center gap-1">
                     {[0, 1, 2].map((i) => (
                       <motion.span
@@ -385,6 +468,67 @@ export default function UploadForm() {
                   </div>
                 </div>
               </div>
+            </motion.div>
+          )}
+
+          {phase === "complete" && (
+            <motion.div
+              key="complete"
+              initial={{ opacity: 0, y: 16, scale: 0.96 }}
+              animate={{ opacity: 1, y: 0, scale: 1 }}
+              exit={{ opacity: 0, y: -8, scale: 0.97 }}
+              transition={{ duration: 0.35, ease: [0.22, 1, 0.36, 1] }}
+              className="pointer-events-auto w-full max-w-sm rounded-2xl border border-[var(--color-forest)] bg-[var(--color-bg-soft)] p-4 shadow-[0_20px_45px_-20px_rgba(18,36,29,0.35)]"
+            >
+              <div className="flex items-start gap-3">
+                <motion.span
+                  initial={{ scale: 0.5, opacity: 0 }}
+                  animate={{ scale: 1, opacity: 1 }}
+                  transition={{ type: "spring", stiffness: 320, damping: 18 }}
+                  className="flex h-9 w-9 shrink-0 items-center justify-center rounded-full bg-[var(--color-forest)]"
+                >
+                  <CheckCircle2 size={18} className="text-white" />
+                </motion.span>
+                <div>
+                  <p className="font-display text-[15px] text-[var(--color-ink)]">
+                    Summary generated successfully
+                  </p>
+                  <p className="mt-0.5 text-sm text-[var(--color-ink-soft)]">
+                    Taking you to your reel…
+                  </p>
+                </div>
+              </div>
+            </motion.div>
+          )}
+
+          {phase === "error" && (
+            <motion.div
+              key="error"
+              initial={{ opacity: 0, y: 16, scale: 0.96 }}
+              animate={{ opacity: 1, y: 0, scale: 1 }}
+              exit={{ opacity: 0, y: -8, scale: 0.97 }}
+              transition={{ duration: 0.35, ease: [0.22, 1, 0.36, 1] }}
+              className="pointer-events-auto relative w-full max-w-sm overflow-hidden rounded-2xl border border-red-200 bg-white p-4 shadow-[0_20px_45px_-20px_rgba(18,36,29,0.35)]"
+            >
+              <div className="flex items-start gap-3">
+                <span className="flex h-9 w-9 shrink-0 items-center justify-center rounded-full bg-red-50">
+                  <AlertCircle size={18} className="text-red-600" />
+                </span>
+                <div>
+                  <p className="font-display text-[15px] text-[var(--color-ink)]">
+                    Something went wrong
+                  </p>
+                  <p className="mt-0.5 text-sm text-[var(--color-ink-soft)]">
+                    {error ?? "Please try again."}
+                  </p>
+                </div>
+              </div>
+              <motion.div
+                className="absolute bottom-0 left-0 h-[3px] bg-red-400"
+                initial={{ width: "100%" }}
+                animate={{ width: "0%" }}
+                transition={{ duration: ERROR_TOAST_MS / 1000, ease: "linear" }}
+              />
             </motion.div>
           )}
         </AnimatePresence>
