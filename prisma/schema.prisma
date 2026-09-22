@@ -7,15 +7,16 @@ datasource db {
 }
 
 model User {
-  id            String    @id
+  id            String       @id
   name          String?
-  email         String    @unique
+  email         String       @unique
   emailVerified Boolean
   image         String?
   createdAt     DateTime
   updatedAt     DateTime
   accounts      Account[]
   sessions      Session[]
+  pdfSummaries  PdfSummary[]
 
   @@map("user")
 }
@@ -62,4 +63,26 @@ model Verification {
   updatedAt  DateTime?
 
   @@map("Verification")
+}
+
+enum SummaryStatus {
+  PENDING
+  COMPLETED
+  FAILED
+}
+
+model PdfSummary {
+  id              String        @id @default(cuid())
+  userId          String
+  user            User          @relation(fields: [userId], references: [id], onDelete: Cascade)
+  originalFileUrl String
+  fileName        String
+  title           String?
+  summaryText     String?       @db.Text
+  status          SummaryStatus @default(PENDING)
+  createdAt       DateTime      @default(now())
+  updatedAt       DateTime      @updatedAt
+
+  @@index([userId])
+  @@map("pdf_summaries")
 }
