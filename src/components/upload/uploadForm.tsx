@@ -16,7 +16,7 @@ import {
 } from "lucide-react";
 import { useUploadThing } from "@/lib/uploadThing";
 import { authClient } from "@/lib/auth-client";
-import { generatePdfSummary } from "@/actions/upload-actions";
+import { generatePdfSummary,storePdfSummary } from "@/actions/upload-actions";
 
 const MAX_SIZE_MB = 20;
 const MAX_SIZE_BYTES = MAX_SIZE_MB * 1024 * 1024;
@@ -135,13 +135,17 @@ export default function UploadForm() {
 
   const handleDragLeave = () => setIsDragging(false);
 
-  const clearFile = () => {
-    if (isUploading) return;
+  const resetForm = () => {
     setFile(null);
     setError(null);
     setProgress(0);
     setPhase("idle");
     if (inputRef.current) inputRef.current.value = "";
+  };
+
+  const clearFile = () => {
+    if (isUploading) return;
+    resetForm();
   };
 
   // this is the part that can take a while (server-side model calls,
@@ -152,6 +156,7 @@ export default function UploadForm() {
     uploadResponse?: Parameters<typeof generatePdfSummary>[0],
   ) => {
     if (!uploadResponse) return;
+    const uploadedFile = uploadResponse[0];
 
     try {
       const result = await generatePdfSummary(uploadResponse);
@@ -162,15 +167,24 @@ export default function UploadForm() {
         return;
       }
 
+      const saved = await storePdfSummary({
+        originalFileUrl: uploadedFile.ufsUrl,
+        fileName: uploadedFile.name,
+        summaryText: result.data,
+      });
+
+      if (!saved.success) {
+        setError(saved.message ?? "Failed to save your summary. Please try again.");
+        setPhase("error");
+        return;
+      }
+
       setPhase("complete");
 
-      // TODO: once generatePdfSummary persists the summary and returns
-      // its id, swap this for the real field (e.g. result.id).
-      const summaryId = (result as { id?: string }).id;
       setTimeout(() => {
-        if (summaryId) {
-          router.push(`/summary/${summaryId}`);
-        }
+        const summaryId = saved.data.id;
+        resetForm();
+        router.push(`/summary/${summaryId}`);
       }, COMPLETE_REDIRECT_MS);
     } catch (err) {
       console.error("Summary generation failed:", err);
@@ -491,7 +505,7 @@ export default function UploadForm() {
                 </motion.span>
                 <div>
                   <p className="font-display text-[15px] text-[var(--color-ink)]">
-                    Summary generated successfully
+                    PDF summary generated successfully
                   </p>
                   <p className="mt-0.5 text-sm text-[var(--color-ink-soft)]">
                     Taking you to your reel…

@@ -7,6 +7,7 @@ import { Prisma } from "@prisma/client";
 import { prisma } from "@/lib/prisma";
 import { auth } from "@/lib/auth";
 import { headers } from "next/headers";
+import { generateSummaryFromOpenRouter } from "@/lib/openRouter-ai";
 
 type StorePdfSummaryInput = z.infer<typeof storePdfSummarySchema>;
 
@@ -50,7 +51,7 @@ export async function generatePdfSummary(uploadResponse: UploadResponse[]) {
 
     console.log("Characters:", pdfText.length);
 
-    const summary = await generateSummaryFromGemini(pdfText);
+    const summary = await generateSummaryFromOpenRouter(pdfText);
 
     console.log("Summary generated successfully");
 

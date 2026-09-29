@@ -39,7 +39,7 @@ async function callWithRetry(prompt: string, modelName: string, retries = 2): Pr
 }
 
 export const generateSummaryFromGemini = async (pdfText: string): Promise<string> => {
-  const truncatedText = pdfText.slice(0, 800000);
+  const truncatedText = pdfText.slice(0, 200000);
   const prompt = `${SUMMARY_SYSTEM_PROMPT}\n\nTransform this document into an engaging, easy-to-read summary with contextually relevant emojis and proper markdown formatting:\n\n${truncatedText}`;
 
   let lastError: unknown;
