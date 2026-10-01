@@ -24,7 +24,7 @@ export default function Navbar({ session }: { session: Session | null }) {
     ...(session
       ? [{ name: "Pricing", href: "/pricing" }]
       : [{ name: "Pricing", href: "/pricing" }]),
-    ...(session ? [{ name: "Summeries", href: "/summaries" }] : []),
+    ...(session ? [{ name: "Summeries", href: "/dashboard" }] : []),
     ...(session ? [{ name: "User", href: "/auth-dashboard" }] : []),
   ];
 

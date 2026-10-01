@@ -52,6 +52,7 @@ export async function generatePdfSummary(uploadResponse: UploadResponse[]) {
     console.log("Characters:", pdfText.length);
 
     const summary = await generateSummaryFromOpenRouter(pdfText);
+    // const summary = await generateSummaryFromGemini(pdfText)
 
     console.log("Summary generated successfully");
 
