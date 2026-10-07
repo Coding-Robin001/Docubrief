@@ -158,3 +158,78 @@ export async function deleteSummary(id: string): Promise<DeleteSummaryResult> {
     };
   }
 }
+
+
+export type SummaryDetail = {
+  id: string;
+  title: string | null;
+  fileName: string;
+  originalFileUrl: string;
+  summaryText: string | null;
+  status: "PENDING" | "COMPLETED" | "FAILED";
+  createdAt: Date;
+};
+
+type GetSummaryResult =
+  | { success: true; data: SummaryDetail; message: string }
+  | { success: false; data: null; message: string };
+
+export async function getSummaryById(id: string): Promise<GetSummaryResult> {
+  try {
+    const sessionResult = await requireUserId();
+
+    if (!sessionResult.success) {
+      return { success: false, data: null, message: sessionResult.message };
+    }
+
+    if (!id) {
+      return { success: false, data: null, message: "No summary id provided." };
+    }
+
+    const summary = await prisma.pdfSummary.findUnique({
+      where: { id },
+      select: {
+        id: true,
+        title: true,
+        fileName: true,
+        originalFileUrl: true,
+        summaryText: true,
+        status: true,
+        createdAt: true,
+        userId: true,
+      },
+    });
+
+    if (!summary) {
+      return { success: false, data: null, message: "That summary doesn't exist." };
+    }
+
+    if (summary.userId !== sessionResult.userId) {
+      return {
+        success: false,
+        data: null,
+        message: "You don't have permission to view this summary.",
+      };
+    }
+
+    const { userId: _userId, ...detail } = summary;
+
+    return { success: true, data: detail, message: "Summary fetched successfully." };
+  } catch (error) {
+    console.error("getSummaryById failed:", error);
+
+    if (error instanceof Prisma.PrismaClientInitializationError) {
+      return {
+        success: false,
+        data: null,
+        message: "Couldn't connect to the database. Please try again shortly.",
+      };
+    }
+
+    return {
+      success: false,
+      data: null,
+      message: "Something went wrong while loading this summary.",
+    };
+  }
+}

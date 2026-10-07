@@ -8,6 +8,7 @@ import { prisma } from "@/lib/prisma";
 import { auth } from "@/lib/auth";
 import { headers } from "next/headers";
 import { generateSummaryFromOpenRouter } from "@/lib/openRouter-ai";
+import { summarySchema } from "@/lib/summarySchema"; // Import your summarySchema
 
 type StorePdfSummaryInput = z.infer<typeof storePdfSummarySchema>;
 
@@ -20,10 +21,14 @@ type UploadResponse = {
   name: string;
 };
 
+// Accept either a string OR the structured summary object
 const storePdfSummarySchema = z.object({
   originalFileUrl: z.string().url("A valid file URL is required."),
   fileName: z.string().min(1, "A file name is required."),
-  summaryText: z.string().min(1, "Summary text can't be empty."),
+  summaryText: z.union([
+    z.string().min(1, "Summary text can't be empty."),
+    summarySchema,
+  ]),
   title: z.string().optional(),
 });
 
@@ -85,7 +90,7 @@ export async function storePdfSummary(
       };
     }
 
-    // 2. validate the shape of what we were asked to save
+    // 2. validate input shape (accepts object or string)
     const parsed = storePdfSummarySchema.safeParse(input);
 
     if (!parsed.success) {
@@ -99,6 +104,12 @@ export async function storePdfSummary(
 
     const { originalFileUrl, fileName, summaryText, title } = parsed.data;
 
+    // Convert object to JSON string if needed before Prisma insertion
+    const serializedSummaryText =
+      typeof summaryText === "string"
+        ? summaryText
+        : JSON.stringify(summaryText);
+
     // 3. the actual mutation
     const savedSummary = await prisma.pdfSummary.create({
       data: {
@@ -106,12 +117,14 @@ export async function storePdfSummary(
         originalFileUrl,
         fileName,
         title: title ?? fileName.replace(/\.pdf$/i, ""),
-        summaryText,
+        summaryText: serializedSummaryText,
         status: "COMPLETED",
       },
       select: { id: true },
     });
-    console.log(savedSummary);
+
+    console.log("Saved summary ID:", savedSummary.id);
+
     return {
       success: true,
       data: { id: savedSummary.id },
@@ -120,8 +133,7 @@ export async function storePdfSummary(
   } catch (error) {
     console.error("storePdfSummary failed:", error);
 
-    // known Prisma errors (constraint violations, connection drops, etc.)
-    // get a specific-enough message without leaking internals
+    // known Prisma errors
     if (error instanceof Prisma.PrismaClientKnownRequestError) {
       if (error.code === "P2002") {
         return {
@@ -153,3 +165,18 @@ export async function storePdfSummary(
     };
   }
 }
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+

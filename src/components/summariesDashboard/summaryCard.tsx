@@ -54,7 +54,7 @@ export default function SummaryCard({
 
   return (
     <Link
-      href={isPending ? "#" : `/summary/${id}`}
+      href={isPending ? "#" : `/summaries/${id}`}
       aria-disabled={isPending}
       className={`group relative flex flex-col rounded-2xl border border-[var(--color-border)] bg-white p-5 transition-all hover:-translate-y-0.5 hover:border-[var(--color-moss)] hover:shadow-[0_20px_40px_-25px_rgba(18,36,29,0.4)] ${
         isPending ? "pointer-events-none opacity-80" : ""
