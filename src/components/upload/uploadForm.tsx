@@ -184,7 +184,7 @@ export default function UploadForm() {
       setTimeout(() => {
         const summaryId = saved.data.id;
         resetForm();
-        router.push(`/summary/${summaryId}`);
+        router.push(`/summaries/${summaryId}`);
       }, COMPLETE_REDIRECT_MS);
     } catch (err) {
       console.error("Summary generation failed:", err);

@@ -24,8 +24,8 @@ export const auth = betterAuth({
     },
     plugins: [nextCookies()],
     redirect: {
-        afterSignIn: "/auth-dashboard",
-        afterSignUp: "/auth-dashboard",
+        afterSignIn: "/dashboard",
+        afterSignUp: "/dashboard",
     },
     
 })

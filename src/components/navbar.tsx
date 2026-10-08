@@ -21,10 +21,10 @@ export default function Navbar({ session }: { session: Session | null }) {
     ...(session
       ? [{ name: "Upload PDF", href: "/upload" }]
       : [{ name: "Login", href: "/auth" }]),
-    ...(session
-      ? [{ name: "Pricing", href: "/pricing" }]
-      : [{ name: "Pricing", href: "/pricing" }]),
-    ...(session ? [{ name: "Summeries", href: "/dashboard" }] : []),
+    // ...(session
+    //   ? [{ name: "Pricing", href: "/pricing" }]
+    //   : [{ name: "Pricing", href: "/pricing" }]),
+    ...(session ? [{ name: "Summaries", href: "/dashboard" }] : []),
     ...(session ? [{ name: "User", href: "/auth-dashboard" }] : []),
   ];
 

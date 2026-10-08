@@ -1,7 +1,18 @@
 import Link from "next/link";
-import { ArrowLeft, Sparkles, Calendar, Clock, FileText, ExternalLink } from "lucide-react";
+import {
+  ArrowLeft,
+  Sparkles,
+  Calendar,
+  Clock,
+  FileText,
+  ExternalLink,
+} from "lucide-react";
 import { getSummaryById } from "@/actions/summary-actions";
-import { parseSummary, countWords, estimateReadMinutes } from "@/lib/parseSummary";
+import {
+  parseSummary,
+  countWords,
+  estimateReadMinutes,
+} from "@/lib/parseSummary";
 import SummaryCarousel from "@/components/summariesDashboard/summaryCarousel";
 import DownloadPdfButton from "@/components/summariesDashboard/downloadPdfButton";
 
@@ -79,25 +90,33 @@ export default async function SummaryDetailPage({
         <h1 className="font-display mt-8 text-[2rem] leading-tight tracking-tight text-[var(--color-ink)] sm:text-[2.5rem]">
           {title}
         </h1>
-
         {/* source + actions */}
-        <div className="mt-5 flex flex-col items-center gap-4 border-b border-[var(--color-border)] pb-10 sm:flex-row sm:justify-between">
-          <span className="inline-flex items-center gap-1.5 text-sm text-[var(--color-ink-soft)]">
-            <FileText size={14} />
-            Source: {fileName}
-          </span>
+        <div className="mt-5 flex flex-col items-stretch gap-4 border-b border-[var(--color-border)] pb-10 sm:flex-row sm:items-center sm:justify-between">
+          {/* Source file wrapper: min-w-0 allows truncate to take effect */}
+          <div className="flex min-w-0 items-center gap-1.5 text-sm text-[var(--color-ink-soft)]">
+            <FileText size={14} className="shrink-0" />
+            <span className="shrink-0 font-medium">Source:</span>
+            <span className="truncate font-mono" title={fileName}>
+              {fileName}
+            </span>
+          </div>
 
-          <div className="flex items-center gap-3">
+          {/* Actions container: shrink-0 prevents buttons from ever squeezing */}
+          <div className="flex shrink-0 items-center gap-3">
             <a
               href={originalFileUrl}
               target="_blank"
               rel="noopener noreferrer"
-              className="inline-flex items-center gap-1.5 rounded-full border border-[var(--color-border)] px-4 py-2 text-[13px] font-semibold text-[var(--color-ink)] transition-colors hover:border-[var(--color-moss)]"
+              className="inline-flex shrink-0 items-center gap-1.5 rounded-full border border-[var(--color-border)] px-4 py-2 text-[13px] font-semibold text-[var(--color-ink)] transition-colors hover:border-[var(--color-moss)]"
             >
               <ExternalLink size={13} />
               View Original
             </a>
-            <DownloadPdfButton title={title} slides={slides} fileName={fileName} />
+            <DownloadPdfButton
+              title={title}
+              slides={slides}
+              fileName={fileName}
+            />
           </div>
         </div>
 
