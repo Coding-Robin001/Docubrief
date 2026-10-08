@@ -1,14 +1,14 @@
 "use server";
 
-import { generateSummaryFromGemini } from "@/lib/gemini-ai";
 import { fetchAndExtractPdfText } from "@/lib/langchain";
 import { z } from "zod";
 import { Prisma } from "@prisma/client";
 import { prisma } from "@/lib/prisma";
 import { auth } from "@/lib/auth";
 import { headers } from "next/headers";
-import { generateSummaryFromOpenRouter } from "@/lib/openRouter-ai";
 import { summarySchema } from "@/lib/summarySchema"; // Import your summarySchema
+import { generateSummary } from "@/lib/generateSummary";
+import type { Provider } from "@/lib/modelCatalog";
 
 type StorePdfSummaryInput = z.infer<typeof storePdfSummarySchema>;
 
@@ -32,7 +32,11 @@ const storePdfSummarySchema = z.object({
   title: z.string().optional(),
 });
 
-export async function generatePdfSummary(uploadResponse: UploadResponse[]) {
+
+export async function generatePdfSummary(
+  uploadResponse: UploadResponse[],
+  provider: Provider = "gemini",
+) {
   if (!uploadResponse.length) {
     return {
       data: null,
@@ -56,13 +60,15 @@ export async function generatePdfSummary(uploadResponse: UploadResponse[]) {
 
     console.log("Characters:", pdfText.length);
 
-    // const summary = await generateSummaryFromOpenRouter(pdfText);
-    const summary = await generateSummaryFromGemini(pdfText)
+    const result = await generateSummary(pdfText, provider);
 
-    console.log("Summary generated successfully");
+    console.log(`Summary generated successfully with ${result.modelUsed}`);
 
     return {
-      data: summary,
+      data: result.summary,
+      modelUsed: result.modelUsed,
+      provider: result.provider,
+      attempts: result.attempts,
       message: "PDF summarized successfully",
     };
   } catch (error) {
@@ -165,18 +171,3 @@ export async function storePdfSummary(
     };
   }
 }
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-

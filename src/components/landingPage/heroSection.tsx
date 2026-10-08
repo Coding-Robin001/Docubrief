@@ -1,13 +1,8 @@
 "use client";
 
-import React from "react";
 import Link from "next/link";
 import { motion, type Variants } from "framer-motion";
 import { ArrowRight, Sparkles, Layers, FileText } from "lucide-react";
-
-// One shared easing/timing language for the whole sequence —
-// deliberately just two variant shapes, reused everywhere, so the
-// motion reads as one orchestrated moment rather than scattered effects.
 
 const columnVariants: Variants = {
   hidden: {},
@@ -96,8 +91,8 @@ function HeroSection() {
             variants={fadeUp}
             className="mt-6 max-w-md text-lg leading-relaxed text-[var(--color-ink-soft)]"
           >
-            Drop in any PDF and Sommaire pulls out what actually matters —
-            a clear, skimmable summary in seconds, not a re-read.
+            Drop in any PDF and DocuBrief pulls out what actually matters. gives
+            you a clear, skimmable summary, not a re-read.
           </motion.p>
 
           <motion.div
@@ -108,14 +103,14 @@ function HeroSection() {
               href="/upload"
               className="group inline-flex items-center gap-2 rounded-full bg-[var(--color-forest)] px-6 py-3.5 text-[15px] font-semibold text-white transition-colors hover:bg-[var(--color-forest-dark)]"
             >
-              Try Sommaire
+              Try DocuBrief
               <ArrowRight
                 size={17}
                 className="transition-transform group-hover:translate-x-0.5"
               />
             </Link>
             <Link
-              href="#how-it-works"
+              href="/upload"
               className="inline-flex items-center gap-2 rounded-full border border-[var(--color-border)] px-6 py-3.5 text-[15px] font-medium text-[var(--color-ink)] transition-colors hover:border-[var(--color-moss)]"
             >
               See how it works
@@ -127,7 +122,7 @@ function HeroSection() {
             className="mt-8 flex items-center gap-2 text-sm text-[var(--color-ink-soft)]"
           >
             <Sparkles size={15} className="text-[var(--color-highlight)]" />
-            No sign-up needed to try your first PDF
+            Sign-up to get your PDF summary in seconds
           </motion.div>
         </motion.div>
 

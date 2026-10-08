@@ -55,7 +55,7 @@ export default function CtaSection() {
             href="/upload"
             className="group inline-flex items-center gap-2 rounded-full bg-[var(--color-highlight)] px-7 py-3.5 text-[15px] font-semibold text-[var(--color-ink)] transition-colors hover:bg-[var(--color-highlight-soft)]"
           >
-            Try Sommaire, it&apos;s free
+            Try DocuBrief, it&apos;s free
             <ArrowRight
               size={17}
               className="transition-transform group-hover:translate-x-0.5"

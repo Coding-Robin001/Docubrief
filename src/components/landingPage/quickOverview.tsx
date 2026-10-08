@@ -44,12 +44,7 @@ const slides = [
     tag: "Key point",
     title: "The number that matters most",
     body: "34% improvement over the baseline — the figure the rest of the document builds its case around.",
-  },
-  {
-    tag: "Method",
-    title: "How they got there",
-    body: "An 18-month study across 40 sites, cross-checked against independent records.",
-  },
+  }
 ];
 
 // entrance, on scroll — this section is below the fold so it
@@ -141,8 +136,8 @@ export default function QuickOverviewSection() {
             variants={fadeUp}
             className="mt-4 text-lg leading-relaxed text-[var(--color-ink-soft)]"
           >
-            Every summary is a short stack of cards. Click through — or
-            swipe on mobile — to see exactly what you&apos;d get back.
+            Every summary is a short stack of cards. Click through or
+            swipe on mobile to see important points.
           </motion.p>
         </motion.div>
 

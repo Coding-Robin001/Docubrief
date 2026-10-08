@@ -44,7 +44,7 @@ export default function Navbar({ session }: { session: Session | null }) {
           className="text-lg sm:text-xl font-bold tracking-wide flex items-center gap-2"
         >
           <h1 className="text-3xl font-extrabold tracking-tight bg-gradient-to-r from-emerald-400 to-orange-400 text-transparent bg-clip-text drop-shadow-sm">
-            SummarizeME
+            DocuBrief
           </h1>
         </Link>
 
