@@ -3,10 +3,11 @@ import "./globals.css";
 import { fraunces, inter } from "@/lib/fonts";
 import NavbarWrapper from "@/components/navbarWrapper";
 import NextTopLoader from "nextjs-toploader";
+import Footer from "@/components/footer";
 
 export const metadata: Metadata = {
-  title: "pdf-review",
-  description: "AI powered pdf reviewer",
+  title: "DocuBrief AI",
+  description: "AI powered pdf sumaries",
 };
 
 export default function RootLayout({ children }: LayoutProps<"/">) {
@@ -16,9 +17,7 @@ export default function RootLayout({ children }: LayoutProps<"/">) {
         <NavbarWrapper />
         <NextTopLoader />
         <main>{children}</main>
-        <footer className="bg-red-500 h-[50px]">
-          footer
-        </footer>
+        <Footer />
       </body>
     </html>
   );

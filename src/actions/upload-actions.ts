@@ -9,17 +9,21 @@ import { headers } from "next/headers";
 import { summarySchema } from "@/lib/summarySchema"; // Import your summarySchema
 import { generateSummary } from "@/lib/generateSummary";
 import type { Provider } from "@/lib/modelCatalog";
-
-type StorePdfSummaryInput = z.infer<typeof storePdfSummarySchema>;
-
-type StorePdfSummaryResult =
-  | { success: true; data: { id: string }; message: string }
-  | { success: false; data: null; message: string };
+import { revalidatePath } from "next/cache";
+import { requireUserId } from "@/lib/require-user";
+import { UploadLimitReachedError, reserveUploadSlot } from "@/lib/uploadLimit";
 
 type UploadResponse = {
   ufsUrl: string;
   name: string;
 };
+
+type StorePdfSummaryInput = z.infer<typeof storePdfSummarySchema>;
+
+type StorePdfSummaryResult =
+  | { success: true; data: { id: string }; message: string }
+  | { success: false; data: null; message: string; code?: "LIMIT_REACHED" };
+
 
 // Accept either a string OR the structured summary object
 const storePdfSummarySchema = z.object({
@@ -31,7 +35,6 @@ const storePdfSummarySchema = z.object({
   ]),
   title: z.string().optional(),
 });
-
 
 export async function generatePdfSummary(
   uploadResponse: UploadResponse[],
@@ -81,55 +84,88 @@ export async function generatePdfSummary(
   }
 }
 
+// Replace your existing storePdfSummary in src/actions/upload-actions.ts with this.
+// Add these imports to that file if they're missing:
+//
+//   import { revalidatePath } from "next/cache";
+//   import { requireUserId } from "@/lib/require-user";
+//   import { UploadLimitReachedError, reserveUploadSlot } from "@/lib/upload-limit";
+
+// const storePdfSummarySchema = z.object({
+//   originalFileUrl: z.string().url("A valid file URL is required."),
+//   fileName: z.string().min(1, "A file name is required."),
+//   summaryText: z.string().min(1, "Summary text can't be empty."),
+//   title: z.string().optional(),
+// });
+
+// type StorePdfSummaryInput = z.infer<typeof storePdfSummarySchema>;
+
+// type StorePdfSummaryResult =
+//   | { success: true; data: { id: string }; message: string }
+//   | { success: false; data: null; message: string; code?: "LIMIT_REACHED" };
+
+// Replace the schema, the result TYPE and the function in src/actions/upload-actions.ts
+// with the three blocks below (the type needs replacing too, it now has `code`).
+// Add these imports to that file if they're missing:
+//
+//   import { revalidatePath } from "next/cache";
+//   import { requireUserId } from "@/lib/require-user";
+//   import { summarySchema } from "@/lib/summarySchema";
+//   import { UploadLimitReachedError, reserveUploadSlot } from "@/lib/upload-limit";
+
+
 export async function storePdfSummary(
   input: StorePdfSummaryInput,
 ): Promise<StorePdfSummaryResult> {
   try {
-    // 1. auth check — no userId, no save
-    const session = await auth.api.getSession({ headers: await headers() });
+    const sessionResult = await requireUserId();
 
-    if (!session?.user?.id) {
-      return {
-        success: false,
-        data: null,
-        message: "You must be signed in to save a summary.",
-      };
+    if (!sessionResult.success) {
+      return { success: false, data: null, message: sessionResult.message };
     }
 
-    // 2. validate input shape (accepts object or string)
     const parsed = storePdfSummarySchema.safeParse(input);
 
     if (!parsed.success) {
       return {
         success: false,
         data: null,
-        message:
-          parsed.error.issues[0]?.message ?? "Invalid summary data provided.",
+        message: parsed.error.issues[0]?.message ?? "Invalid summary data provided.",
       };
     }
 
     const { originalFileUrl, fileName, summaryText, title } = parsed.data;
 
-    // Convert object to JSON string if needed before Prisma insertion
-    const serializedSummaryText =
-      typeof summaryText === "string"
-        ? summaryText
-        : JSON.stringify(summaryText);
+    // the DB column is a string, so serialize the structured summary if that's what we got
+    const summaryTextString =
+      typeof summaryText === "string" ? summaryText : JSON.stringify(summaryText);
 
-    // 3. the actual mutation
-    const savedSummary = await prisma.pdfSummary.create({
-      data: {
-        userId: session.user.id,
-        originalFileUrl,
-        fileName,
-        title: title ?? fileName.replace(/\.pdf$/i, ""),
-        summaryText: serializedSummaryText,
-        status: "COMPLETED",
-      },
-      select: { id: true },
+    const resolvedTitle =
+      title ??
+      (typeof summaryText === "string" ? undefined : summaryText.title) ??
+      fileName.replace(/\.pdf$/i, "");
+
+    // claim an upload slot and save the summary atomically: if the user is
+    // out of free uploads the transaction rolls back and nothing is saved
+    const savedSummary = await prisma.$transaction(async (tx) => {
+      await reserveUploadSlot(tx, sessionResult.userId);
+
+      return tx.pdfSummary.create({
+        data: {
+          userId: sessionResult.userId,
+          originalFileUrl,
+          fileName,
+          title: resolvedTitle,
+          summaryText: summaryTextString,
+          status: "COMPLETED",
+        },
+        select: { id: true },
+      });
     });
 
-    console.log("Saved summary ID:", savedSummary.id);
+    // refresh the counters shown on both pages
+    revalidatePath("/upload");
+    revalidatePath("/summaries");
 
     return {
       success: true,
@@ -137,17 +173,19 @@ export async function storePdfSummary(
       message: "Summary saved successfully.",
     };
   } catch (error) {
+    if (error instanceof UploadLimitReachedError) {
+      return {
+        success: false,
+        data: null,
+        code: "LIMIT_REACHED",
+        message:
+          "You've used all your free uploads. Upgrade to premium for unlimited summaries.",
+      };
+    }
+
     console.error("storePdfSummary failed:", error);
 
-    // known Prisma errors
     if (error instanceof Prisma.PrismaClientKnownRequestError) {
-      if (error.code === "P2002") {
-        return {
-          success: false,
-          data: null,
-          message: "This summary already exists.",
-        };
-      }
       return {
         success: false,
         data: null,
@@ -166,8 +204,7 @@ export async function storePdfSummary(
     return {
       success: false,
       data: null,
-      message:
-        "Something went wrong while saving your summary. Please try again.",
+      message: "Something went wrong while saving your summary. Please try again.",
     };
   }
 }

@@ -16,7 +16,7 @@ export default function UploadHeader() {
       </h1>
 
       <p className="mt-4 text-lg leading-relaxed text-[var(--color-ink-soft)]">
-        Drop in a document and let Sommaire turn it into a short,
+        Drop in a document and let DocuBrief turn it into a short,
         skimmable reel.
       </p>
     </div>

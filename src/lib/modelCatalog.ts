@@ -15,7 +15,7 @@ export const MODEL_CATALOG: Record<
     models: [
       "nvidia/nemotron-3-ultra-550b-a55b:free",
       "meta-llama/llama-3.3-70b-instruct:free",
-      "google/gemini-2.0-flash-exp:free",
+      "nvidia/nemotron-3.5-lightning:free",
     ],
   },
 };

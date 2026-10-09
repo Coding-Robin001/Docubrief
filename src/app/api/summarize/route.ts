@@ -3,6 +3,7 @@ import { z } from "zod";
 import { requireUserId } from "@/lib/require-user";
 import { fetchAndExtractPdfText } from "@/lib/langchain";
 import { generateSummary } from "@/lib/generateSummary";
+import { getUploadQuota } from "@/lib/uploadLimit";
 import { describeError, type GenerationEvent } from "@/lib/modelLog";
 
 export const runtime = "nodejs";
@@ -35,6 +36,20 @@ export async function POST(req: Request) {
 
   if (!sessionResult.success) {
     return Response.json({ message: sessionResult.message }, { status: 401 });
+  }
+
+  // stop before spending any AI calls if a free user is out of uploads
+  const quota = await getUploadQuota(sessionResult.userId);
+
+  if (quota.hasReachedLimit) {
+    return Response.json(
+      {
+        message:
+          "You've used all your free uploads. Upgrade to premium for unlimited summaries.",
+        code: "LIMIT_REACHED",
+      },
+      { status: 403 },
+    );
   }
 
   const parsed = bodySchema.safeParse(await req.json().catch(() => null));
