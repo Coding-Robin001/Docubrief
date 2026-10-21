@@ -16,6 +16,11 @@ model User {
   updatedAt     DateTime
   accounts      Account[]
   sessions      Session[]
+  pdfSummaries  PdfSummary[]
+  uploadCount   Int          @default(0)
+  isPremium     Boolean      @default(false)
+  chatMessages  ChatMessage[]
+  chatUsage     ChatUsage[]
 
   @@map("user")
 }
@@ -78,10 +83,42 @@ model PdfSummary {
   fileName        String
   title           String?
   summaryText     String?       @db.Text
+  pdfText         String?       @db.Text // extracted PDF text, cached on the first chat question
   status          SummaryStatus @default(PENDING)
   createdAt       DateTime      @default(now())
   updatedAt       DateTime      @updatedAt
+  chatMessages    ChatMessage[]
 
   @@index([userId])
   @@map("pdf_summaries")
+}
+
+enum ChatRole {
+  USER
+  ASSISTANT
+}
+
+model ChatMessage {
+  id        String     @id @default(cuid())
+  summaryId String
+  summary   PdfSummary @relation(fields: [summaryId], references: [id], onDelete: Cascade)
+  userId    String
+  user      User       @relation(fields: [userId], references: [id], onDelete: Cascade)
+  role      ChatRole
+  content   String     @db.Text
+  createdAt DateTime   @default(now())
+
+  @@index([summaryId, createdAt])
+  @@map("chat_messages")
+}
+
+// one row per user per UTC day; powers the 5-questions-a-day limit
+model ChatUsage {
+  userId String
+  user   User   @relation(fields: [userId], references: [id], onDelete: Cascade)
+  day    String // UTC date, "YYYY-MM-DD"
+  count  Int    @default(0)
+
+  @@id([userId, day])
+  @@map("chat_usage")
 }

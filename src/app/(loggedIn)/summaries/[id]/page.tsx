@@ -15,6 +15,7 @@ import {
 } from "@/lib/parseSummary";
 import SummaryCarousel from "@/components/summariesDashboard/summaryCarousel";
 import DownloadPdfButton from "@/components/summariesDashboard/downloadPdfButton";
+import ChatTestButton from "@/components/chatTestButton";
 
 function formatDate(date: Date) {
   return new Date(date).toLocaleDateString(undefined, {
@@ -127,6 +128,7 @@ export default async function SummaryDetailPage({
 
         <div className="mt-6">
           <SummaryCarousel slides={slides} />
+          <ChatTestButton summaryId={id}/>
         </div>
       </div>
     </main>
