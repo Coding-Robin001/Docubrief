@@ -4,8 +4,8 @@ import { fetchAndExtractPdfText } from "@/lib/langchain";
 import { z } from "zod";
 import { Prisma } from "@prisma/client";
 import { prisma } from "@/lib/prisma";
-import { auth } from "@/lib/auth";
-import { headers } from "next/headers";
+// import { auth } from "@/lib/auth";
+// import { headers } from "next/headers";
 import { summarySchema } from "@/lib/summarySchema"; // Import your summarySchema
 import { generateSummary } from "@/lib/generateSummary";
 import type { Provider } from "@/lib/modelCatalog";

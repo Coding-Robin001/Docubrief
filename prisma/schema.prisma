@@ -16,9 +16,6 @@ model User {
   updatedAt     DateTime
   accounts      Account[]
   sessions      Session[]
-  pdfSummaries  PdfSummary[]
-  uploadCount   Int          @default(0)
-  isPremium     Boolean      @default(false)
 
   @@map("user")
 }
