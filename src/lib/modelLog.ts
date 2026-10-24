@@ -19,6 +19,7 @@ export type GenerationResult = {
 // Events streamed from the server to the upload page, one JSON object per line
 export type GenerationEvent =
   | { type: "extracting" }
+  | { type: "notice"; message: string }
   | { type: "model_start"; provider: Provider; model: string; position: number; total: number }
   | { type: "model_retry"; provider: Provider; model: string; reason: string; waitMs: number }
   | { type: "model_failed"; provider: Provider; model: string; reason: string }

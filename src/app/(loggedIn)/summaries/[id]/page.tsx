@@ -15,6 +15,7 @@ import {
 } from "@/lib/parseSummary";
 import SummaryCarousel from "@/components/summariesDashboard/summaryCarousel";
 import DownloadPdfButton from "@/components/summariesDashboard/downloadPdfButton";
+import ChatTestButton from "@/components/chatTestButton";
 
 function formatDate(date: Date) {
   return new Date(date).toLocaleDateString(undefined, {
@@ -72,7 +73,10 @@ export default async function SummaryDetailPage({
 
           <div className="flex flex-wrap items-center gap-2">
             <span className="inline-flex items-center gap-1.5 rounded-lg border border-emerald-200/80 bg-emerald-50 px-2.5 py-1 text-xs font-semibold text-emerald-800 dark:border-emerald-900/50 dark:bg-emerald-950/40 dark:text-emerald-300">
-              <Sparkles size={12} className="text-emerald-600 dark:text-emerald-400" />
+              <Sparkles
+                size={12}
+                className="text-emerald-600 dark:text-emerald-400"
+              />
               AI Summary
             </span>
             <span className="inline-flex items-center gap-1.5 rounded-lg bg-slate-100 px-2.5 py-1 text-xs font-medium text-slate-600 dark:bg-slate-800 dark:text-slate-300">
@@ -96,7 +100,10 @@ export default async function SummaryDetailPage({
             <div className="flex min-w-0 items-center gap-2 text-xs text-slate-500 dark:text-slate-400">
               <FileText size={14} className="shrink-0" />
               <span className="shrink-0 font-medium">Source:</span>
-              <span className="truncate font-mono font-medium text-slate-700 dark:text-slate-300" title={fileName}>
+              <span
+                className="truncate font-mono font-medium text-slate-700 dark:text-slate-300"
+                title={fileName}
+              >
                 {fileName}
               </span>
             </div>
@@ -123,15 +130,14 @@ export default async function SummaryDetailPage({
         {/* Main Presentation Container */}
         <div className="mt-8">
           <SummaryCarousel slides={slides} />
+          <ChatTestButton summaryId={id} />
         </div>
 
         <p className="mt-6 text-center text-xs font-medium text-slate-400 dark:text-slate-500">
-          {wordCount.toLocaleString()} words summarized across {slides.length} slides
+          {wordCount.toLocaleString()} words summarized across {slides.length}{" "}
+          slides
         </p>
       </div>
     </main>
   );
 }
-
-          // <ChatTestButton summaryId={id}/>
-

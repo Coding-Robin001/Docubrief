@@ -3,7 +3,7 @@ import type { ChatCompletionCreateParamsNonStreaming } from "openai/resources/ch
 import { SUMMARY_SYSTEM_PROMPT } from "./prompts";
 import { summarySchema, type GeneratedSummary } from "./summarySchema";
 import { sanitizeSummaryData } from "./sanitizeSummary";
-import { MODEL_CATALOG } from "./modelCatalog";
+import { MODEL_CATALOG, SUMMARY_CHAR_LIMITS } from "./modelCatalog";
 import {
   describeError,
   type EmitEvent,
@@ -96,10 +96,7 @@ async function callOpenRouterModel(
   const response = await openrouter.chat.completions.create(params);
 
   if (!response || !response.choices || response.choices.length === 0) {
-    console.error(
-      "OpenRouter raw error response:",
-      JSON.stringify(response, null, 2),
-    );
+    console.error("OpenRouter raw error response:", JSON.stringify(response, null, 2));
     throw new Error(`No choices returned for model ${model}`);
   }
 
@@ -118,10 +115,7 @@ async function callOpenRouterModel(
 
   const validated = summarySchema.safeParse(sanitizeSummaryData(parsedJson));
   if (!validated.success) {
-    console.warn(
-      `Model ${model} failed schema validation:`,
-      validated.error.issues,
-    );
+    console.warn(`Model ${model} failed schema validation:`, validated.error.issues);
     throw new Error("Response didn't match the summary schema");
   }
 
@@ -132,7 +126,7 @@ export const generateSummaryFromOpenRouter = async (
   pdfText: string,
   emit?: EmitEvent,
 ): Promise<GenerationResult> => {
-  const truncatedText = pdfText.slice(0, 200000);
+  const truncatedText = pdfText.slice(0, SUMMARY_CHAR_LIMITS.openrouter);
   const attempts: ModelAttempt[] = [];
   let lastError: unknown;
 
@@ -175,8 +169,5 @@ export const generateSummaryFromOpenRouter = async (
     }
   }
 
-  throw (
-    lastError ||
-    new Error("All OpenRouter models failed to generate a summary.")
-  );
+  throw lastError || new Error("All OpenRouter models failed to generate a summary.");
 };

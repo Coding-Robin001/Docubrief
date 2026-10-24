@@ -7,6 +7,7 @@ import { describeError, type GenerationEvent } from "@/lib/modelLog";
 import { getUploadQuota, UploadLimitReachedError } from "@/lib/uploadLimit";
 import { saveGeneratedSummary } from "@/lib/saveSummary";
 import { MIN_USABLE_PDF_CHARS } from "@/lib/pdfText";
+import { SUMMARY_CHAR_LIMITS } from "@/lib/modelCatalog";
 
 export const runtime = "nodejs";
 // extraction + generation with fallbacks can take minutes; raise to whatever your host allows
@@ -97,9 +98,22 @@ export async function POST(req: Request) {
           return;
         }
 
+        // warn when the document is longer than what the model will read
+        const charLimit = SUMMARY_CHAR_LIMITS[provider];
+        if (pdfText.length > charLimit) {
+          send({
+            type: "notice",
+            message: `This document has ${pdfText.length.toLocaleString("en-US")} characters. For best results the limit is ${charLimit.toLocaleString("en-US")}, so only the first ${charLimit.toLocaleString("en-US")} will be summarised.`,
+          });
+        }
+
         // 2. generate the summary with the chosen provider's fallback chain
         stage = "generating";
+        const generateStart = Date.now();
         const result = await generateSummary(pdfText, provider, send);
+        console.log(
+          `Summarize: ${result.modelUsed} generated in ${Date.now() - generateStart}ms (${result.attempts.length} attempt(s))`,
+        );
 
         // 3. save the summary, the full text, and the upload slot together
         stage = "saving";

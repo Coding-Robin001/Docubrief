@@ -191,6 +191,9 @@ export default function UploadForm({ quota }: { quota: UploadQuota | null }) {
         setModelStates((prev) => ({ ...prev, [event.model]: "done" }));
         pushLog("success", `${event.model} finished your summary`);
         break;
+      case "notice":
+        pushLog("warn", event.message);
+        break;
       case "saving":
         pushLog("info", "Saving your summary…");
         break;
@@ -767,10 +770,10 @@ export default function UploadForm({ quota }: { quota: UploadQuota | null }) {
                 </span>
                 <div className="min-w-0">
                   <p className="font-display text-[15px] text-white">
-                    AI is working its magic
+                    DocuBrief AI is working its magic
                   </p>
                   <p className="mt-0.5 text-sm text-[var(--color-mist)]">
-                    Preparing your PDF review — hang tight.
+                    Preparing your PDF review, hang tight.
                   </p>
                   <p className="mt-2 truncate font-mono text-[11px] text-[var(--color-highlight)]">
                     {activeModel ?? "Starting…"}

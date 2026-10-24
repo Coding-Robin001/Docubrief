@@ -2,7 +2,7 @@ import { GoogleGenAI, Type } from "@google/genai";
 import { SUMMARY_SYSTEM_PROMPT } from "./prompts";
 import { summarySchema } from "./summarySchema";
 import { sanitizeSummaryData } from "./sanitizeSummary";
-import { MODEL_CATALOG } from "./modelCatalog";
+import { MODEL_CATALOG, SUMMARY_CHAR_LIMITS } from "./modelCatalog";
 import {
   describeError,
   type EmitEvent,
@@ -110,7 +110,7 @@ export const generateSummaryFromGemini = async (
   pdfText: string,
   emit?: EmitEvent,
 ): Promise<GenerationResult> => {
-  const truncatedText = pdfText.slice(0, 800000);
+  const truncatedText = pdfText.slice(0, SUMMARY_CHAR_LIMITS.gemini);
   const prompt = `${SUMMARY_SYSTEM_PROMPT}
 
 CRITICAL OUTPUT FORMAT:
