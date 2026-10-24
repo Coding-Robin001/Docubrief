@@ -10,7 +10,7 @@ const CHAT_MODELS = MODEL_CATALOG.gemini.models;
 // Keep chat fast and cheap: cap the document, and don't let one slow
 // model hold the user up. No same-model retries: on failure or timeout we
 // move straight to the next model.
-const MAX_DOCUMENT_CHARS = 200_000;
+const MAX_DOCUMENT_CHARS = 300_000; // roughly 75k tokens; the full text stays in the DB
 const MODEL_TIMEOUT_MS = 25_000;
 
 const CHAT_SYSTEM_PROMPT = `You answer questions about one PDF document. The document text is provided below as DOCUMENT.

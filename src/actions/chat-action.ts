@@ -1,4 +1,4 @@
-// Place at: src/actions/chat-actions.ts
+
 "use server";
 
 import { z } from "zod";
@@ -6,6 +6,7 @@ import { prisma } from "@/lib/prisma";
 import { requireUserId } from "@/lib/require-user";
 import { fetchAndExtractPdfText } from "@/lib/langchain";
 import { answerQuestion } from "@/lib/ChatAi";
+import { MIN_USABLE_PDF_CHARS, prepareForStorage } from "@/lib/pdfText";
 import {
   ChatLimitReachedError,
   reserveChatQuestion,
@@ -65,7 +66,8 @@ export async function askPdfQuestion(
       return { success: false, message: "You don't have access to this summary." };
     }
 
-    // 4. get the document text: extract once, then reuse it from the database
+    // 4. get the document text. New summaries already have it saved at upload
+    //    time; this extraction is only a fallback for older ones.
     let pdfText = summary.pdfText;
 
     if (!pdfText) {
@@ -77,7 +79,7 @@ export async function askPdfQuestion(
 
       // don't cache empty or near-empty text (e.g. a scanned PDF), or every
       // later question would fail against it
-      if (extracted.trim().length < 50) {
+      if (extracted.trim().length < MIN_USABLE_PDF_CHARS) {
         return {
           success: false,
           message:
@@ -85,7 +87,7 @@ export async function askPdfQuestion(
         };
       }
 
-      pdfText = extracted;
+      pdfText = prepareForStorage(extracted);
       await prisma.pdfSummary.update({
         where: { id: summaryId },
         data: { pdfText },

@@ -23,8 +23,9 @@ export type GenerationEvent =
   | { type: "model_retry"; provider: Provider; model: string; reason: string; waitMs: number }
   | { type: "model_failed"; provider: Provider; model: string; reason: string }
   | { type: "model_success"; provider: Provider; model: string }
-  | { type: "complete"; result: GenerationResult }
-  | { type: "error"; message: string };
+  | { type: "saving" }
+  | { type: "complete"; summaryId: string; modelUsed: string; provider: Provider }
+  | { type: "error"; message: string; code?: "LIMIT_REACHED" };
 
 export type EmitEvent = (event: GenerationEvent) => void;
 

@@ -84,35 +84,6 @@ export async function generatePdfSummary(
   }
 }
 
-// Replace your existing storePdfSummary in src/actions/upload-actions.ts with this.
-// Add these imports to that file if they're missing:
-//
-//   import { revalidatePath } from "next/cache";
-//   import { requireUserId } from "@/lib/require-user";
-//   import { UploadLimitReachedError, reserveUploadSlot } from "@/lib/upload-limit";
-
-// const storePdfSummarySchema = z.object({
-//   originalFileUrl: z.string().url("A valid file URL is required."),
-//   fileName: z.string().min(1, "A file name is required."),
-//   summaryText: z.string().min(1, "Summary text can't be empty."),
-//   title: z.string().optional(),
-// });
-
-// type StorePdfSummaryInput = z.infer<typeof storePdfSummarySchema>;
-
-// type StorePdfSummaryResult =
-//   | { success: true; data: { id: string }; message: string }
-//   | { success: false; data: null; message: string; code?: "LIMIT_REACHED" };
-
-// Replace the schema, the result TYPE and the function in src/actions/upload-actions.ts
-// with the three blocks below (the type needs replacing too, it now has `code`).
-// Add these imports to that file if they're missing:
-//
-//   import { revalidatePath } from "next/cache";
-//   import { requireUserId } from "@/lib/require-user";
-//   import { summarySchema } from "@/lib/summarySchema";
-//   import { UploadLimitReachedError, reserveUploadSlot } from "@/lib/upload-limit";
-
 
 export async function storePdfSummary(
   input: StorePdfSummaryInput,

@@ -1,4 +1,4 @@
-// Place at: src/lib/upload-limit.ts
+
 import type { Prisma } from "@prisma/client";
 import { prisma } from "@/lib/prisma";
 import { requireUserId } from "@/lib/require-user";
@@ -51,39 +51,34 @@ export async function getCurrentUserQuota(): Promise<UploadQuota | null> {
   return getUploadQuota(sessionResult.userId);
 }
 
+type UserDb = Pick<Prisma.TransactionClient, "user">;
+
 /**
- * Claims one upload slot inside a transaction. For free users the
- * "count < limit" check and the increment happen in a single UPDATE, so two
- * simultaneous uploads can't both slip past the limit. Throws
- * UploadLimitReachedError (rolling the transaction back) if no slot is left.
+ * Claims one upload slot with a single UPDATE: free users only get it while
+ * their count is under the limit, premium users always do. One statement means
+ * one database round trip, and two simultaneous uploads still can't both slip
+ * past the limit. Throws UploadLimitReachedError if no slot is left.
+ *
+ * Works with the normal client or inside a transaction (pass `tx`).
  */
-export async function reserveUploadSlot(
-  tx: Prisma.TransactionClient,
-  userId: string,
-) {
-  const user = await tx.user.findUnique({
-    where: { id: userId },
-    select: { isPremium: true },
-  });
-
-  if (!user) {
-    throw new Error("User not found.");
-  }
-
-  if (user.isPremium) {
-    await tx.user.update({
-      where: { id: userId },
-      data: { uploadCount: { increment: 1 } },
-    });
-    return;
-  }
-
-  const { count } = await tx.user.updateMany({
-    where: { id: userId, uploadCount: { lt: FREE_UPLOAD_LIMIT } },
+export async function reserveUploadSlot(db: UserDb, userId: string) {
+  const { count } = await db.user.updateMany({
+    where: {
+      id: userId,
+      OR: [{ isPremium: true }, { uploadCount: { lt: FREE_UPLOAD_LIMIT } }],
+    },
     data: { uploadCount: { increment: 1 } },
   });
 
   if (count === 0) {
     throw new UploadLimitReachedError();
   }
+}
+
+/** Gives a slot back when the save failed after we claimed it. Never goes below zero. */
+export async function releaseUploadSlot(userId: string) {
+  await prisma.user.updateMany({
+    where: { id: userId, uploadCount: { gt: 0 } },
+    data: { uploadCount: { decrement: 1 } },
+  });
 }

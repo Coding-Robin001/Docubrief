@@ -15,7 +15,7 @@ export default function ChatTestButton({ summaryId }: { summaryId: string }) {
  
     const result = await askPdfQuestion({
       summaryId,
-      question: "3 key things to know about this documents?",
+      question: "anything about aliens in the file?",
     });
  
     setOutput(`${Date.now() - startedAt}ms\n${JSON.stringify(result, null, 2)}`);

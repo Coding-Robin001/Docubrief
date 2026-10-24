@@ -1,15 +1,12 @@
 // components/navbar-wrapper.tsx
-import { auth } from "@/lib/auth";
 import Navbar from "./navbar";
-import { headers } from "next/headers";
+import { getSession } from "@/lib/getSessions";
 
 export default async function NavbarWrapper() {
   let session = null;
 
   try {
-    session = await auth.api.getSession({
-      headers: await headers(),
-    });
+    session = await getSession();
   } catch {}
 
   return <Navbar session={session} />;
