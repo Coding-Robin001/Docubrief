@@ -29,13 +29,13 @@ export async function fetchAndExtractPdfText(fileUrl: string) {
   return text;
 }
 
-export async function splitPdfText(text: string) {
-  const splitter = new RecursiveCharacterTextSplitter({
-    chunkSize: 10_000,
-    chunkOverlap: 500,
-  });
+// export async function splitPdfText(text: string) {
+//   const splitter = new RecursiveCharacterTextSplitter({
+//     chunkSize: 10_000,
+//     chunkOverlap: 500,
+//   });
 
-  const chunks = await splitter.splitText(text);
+//   const chunks = await splitter.splitText(text);
 
-  return chunks;
-}
+//   return chunks;
+// }

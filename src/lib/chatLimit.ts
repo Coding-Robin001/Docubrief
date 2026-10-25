@@ -64,54 +64,37 @@ export async function getCurrentUserChatQuota(): Promise<ChatQuota | null> {
 
 /**
  * Takes one question from today's allowance and returns how many are left
- * (null for premium, which is unlimited). For free users the "count < limit"
- * check and the increment are a single UPDATE, so two tabs sending at the
- * same moment can't both squeeze past the limit.
- * Throws ChatLimitReachedError when today's questions are used up.
+ * (null for premium, which is unlimited). Throws ChatLimitReachedError when
+ * today's questions are used up.
+ *
+ * One statement, one database round trip, no transaction: it creates today's
+ * row on the first question of the day, and otherwise adds one only while the
+ * count is under the limit. Because it's a single atomic statement, two tabs
+ * sending at the same moment can't both squeeze past the limit. No row coming
+ * back means the limit was hit.
  */
 export async function reserveChatQuestion(userId: string): Promise<number | null> {
   const day = todayKey();
 
-  const user = await prisma.user.findUnique({
-    where: { id: userId },
-    select: { isPremium: true },
-  });
+  const rows = await prisma.$queryRaw<{ count: number; isPremium: boolean | null }[]>`
+    INSERT INTO chat_usage ("userId", "day", "count")
+    VALUES (${userId}, ${day}, 1)
+    ON CONFLICT ("userId", "day") DO UPDATE
+      SET "count" = chat_usage."count" + 1
+      WHERE chat_usage."count" < CASE
+        WHEN (SELECT "isPremium" FROM "user" WHERE "id" = ${userId}) THEN 2147483647
+        ELSE ${DAILY_CHAT_LIMIT}
+      END
+    RETURNING "count", (SELECT "isPremium" FROM "user" WHERE "id" = ${userId}) AS "isPremium"
+  `;
 
-  if (!user) {
-    throw new Error("User not found.");
+  if (rows.length === 0) {
+    throw new ChatLimitReachedError();
   }
 
-  return prisma.$transaction(async (tx) => {
-    // make sure today's row exists (safe if two requests race to create it)
-    await tx.chatUsage.createMany({
-      data: [{ userId, day, count: 0 }],
-      skipDuplicates: true,
-    });
+  const { count, isPremium } = rows[0];
 
-    if (user.isPremium) {
-      await tx.chatUsage.update({
-        where: { userId_day: { userId, day } },
-        data: { count: { increment: 1 } },
-      });
-      return null;
-    }
-
-    const { count } = await tx.chatUsage.updateMany({
-      where: { userId, day, count: { lt: DAILY_CHAT_LIMIT } },
-      data: { count: { increment: 1 } },
-    });
-
-    if (count === 0) {
-      throw new ChatLimitReachedError();
-    }
-
-    const row = await tx.chatUsage.findUniqueOrThrow({
-      where: { userId_day: { userId, day } },
-      select: { count: true },
-    });
-
-    return Math.max(0, DAILY_CHAT_LIMIT - row.count);
-  });
+  return isPremium ? null : Math.max(0, DAILY_CHAT_LIMIT - Number(count));
 }
 
 /**

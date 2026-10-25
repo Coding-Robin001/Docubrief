@@ -1,4 +1,4 @@
-
+// Place at: src/actions/chat-actions.ts
 "use server";
 
 import { z } from "zod";
@@ -32,6 +32,8 @@ export async function askPdfQuestion(
   input: z.infer<typeof askSchema>,
 ): Promise<AskPdfQuestionResult> {
   const startedAt = Date.now();
+  const lap = (label: string) =>
+    console.log(`Chat: ${label} at ${Date.now() - startedAt}ms`);
   let userId = "";
   let reserved = false;
 
@@ -42,6 +44,7 @@ export async function askPdfQuestion(
       return { success: false, message: sessionResult.message };
     }
     userId = sessionResult.userId;
+    lap("session checked");
 
     // 2. is the input valid
     const parsed = askSchema.safeParse(input);
@@ -68,6 +71,8 @@ export async function askPdfQuestion(
 
     // 4. get the document text. New summaries already have it saved at upload
     //    time; this extraction is only a fallback for older ones.
+    lap(`summary loaded (PDF text cached: ${summary.pdfText ? "yes" : "no"})`);
+
     let pdfText = summary.pdfText;
 
     if (!pdfText) {
@@ -94,9 +99,12 @@ export async function askPdfQuestion(
       });
     }
 
+    lap("document text ready");
+
     // 5. spend one of today's questions (throws ChatLimitReachedError at the limit)
     const remaining = await reserveChatQuestion(userId);
     reserved = true;
+    lap("question reserved");
 
     // 6. recent conversation, oldest first
     const recent = await prisma.chatMessage.findMany({
@@ -106,9 +114,11 @@ export async function askPdfQuestion(
       select: { role: true, content: true },
     });
     const history = recent.reverse();
+    lap("history loaded");
 
     // 7. ask the model: document + history + question in, plain text out
     const answer = await answerQuestion({ pdfText, history, question });
+    lap("model answered");
 
     // 8. save both messages (explicit timestamps keep their order stable)
     const now = Date.now();

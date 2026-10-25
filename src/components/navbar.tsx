@@ -13,30 +13,30 @@ export default function Navbar({ session }: { session: Session | null }) {
   const [signingOut, setSigningOut] = useState(false);
 
   const router = useRouter();
-
   const pathname = usePathname();
 
   const navLinks = [
-    // { name: "home", href: "/home" },
     ...(session
       ? [{ name: "Upload PDF", href: "/upload" }]
       : [{ name: "Login", href: "/auth" }]),
-    // ...(session
-    //   ? [{ name: "Pricing", href: "/pricing" }]
-    //   : [{ name: "Pricing", href: "/pricing" }]),
     ...(session ? [{ name: "Summaries", href: "/dashboard" }] : []),
     ...(session ? [{ name: "User", href: "/auth-dashboard" }] : []),
   ];
 
   const handleSignOut = async () => {
     setSigningOut(true);
-    await signOut();
-    router.push("/auth");
-    setSigningOut(false);
+    try {
+      await signOut();
+      router.push("/auth");
+    } catch (error) {
+      console.error("Failed to sign out:", error);
+    } finally {
+      setSigningOut(false);
+    }
   };
 
   return (
-    <header className="border-b-[0.1px] border-gray-800 w-full flex items-center justify-between  bg-gradient-to-r from-black via-gray-900 to-black text-white shadow-md border-emerald-900 shadow-md backdrop-blur-lg">
+    <header className="border-b-[0.1px] border-gray-800 w-full flex items-center justify-between bg-gradient-to-r from-black via-gray-900 to-black text-white shadow-md border-emerald-900 backdrop-blur-lg">
       <nav className="container mx-auto flex items-center justify-between px-3 py-4">
         {/* Logo */}
         <Link
@@ -77,12 +77,19 @@ export default function Navbar({ session }: { session: Session | null }) {
             <div className="flex items-center gap-4">
               <button
                 onClick={handleSignOut}
-                className="bg-emerald-800/40 p-2 cursor-pointer rounded-lg hover:bg-emerald-700/50 transition"
+                disabled={signingOut}
+                className="flex items-center justify-center gap-2 px-3.5 py-2 min-w-[124px] rounded-lg text-sm font-medium bg-gray-800/80 hover:bg-gray-700 text-gray-200 hover:text-white border border-gray-700/80 transition cursor-pointer disabled:opacity-50 disabled:cursor-not-allowed shadow-sm"
               >
                 {signingOut ? (
-                  <div className="w-5 h-5 border-2 border-emerald-400/30 border-t-emerald-400 rounded-full animate-spin" />
+                  <>
+                    <div className="w-4 h-4 border-2 border-emerald-400/30 border-t-emerald-400 rounded-full animate-spin shrink-0" />
+                    <span>Signing out...</span>
+                  </>
                 ) : (
-                  <LogOut size={16} />
+                  <>
+                    <LogOut size={16} className="text-emerald-400 shrink-0" />
+                    <span>Sign out</span>
+                  </>
                 )}
               </button>
             </div>
