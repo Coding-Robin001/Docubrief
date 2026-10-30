@@ -2,14 +2,13 @@ export type Provider = "gemini" | "openrouter";
 
 // Order matters: index 0 is tried first, the rest are fallbacks in order.
 // The UI reads this same list to render the toggle and the fallback order.
-export const MODEL_CATALOG: Record<Provider, { label: string; models: string[] }> = {
+export const MODEL_CATALOG: Record<
+  Provider,
+  { label: string; models: string[] }
+> = {
   gemini: {
     label: "Gemini",
-    models: [
-      "gemini-3.8-flash",
-      "gemini-3.6-flash",
-      "gemini-3.5-flash",
-    ],
+    models: ["gemini-3.6-flash", "gemini-3.5-flash", "gemini-3.8-flash"],
   },
   openrouter: {
     label: "OpenRouter",
