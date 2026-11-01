@@ -7,10 +7,14 @@ import Footer from "@/components/footer";
 
 export const metadata: Metadata = {
   title: "DocuBrief AI",
-  description: "AI powered pdf sumaries",
+  description: "AI powered pdf sumaries + chat",
 };
 
-export default function RootLayout({ children }: LayoutProps<"/">) {
+export default function RootLayout({
+  children,
+}: {
+  children: React.ReactNode;
+}) {
   return (
     <html lang="en" className={`${fraunces.variable} ${inter.variable}`}>
       <body>
