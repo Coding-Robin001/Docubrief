@@ -43,7 +43,7 @@ export async function fetchSummaries(): Promise<FetchSummariesResult> {
       },
     });
 
-    const data: SummaryListItem[] = summaries.map((s) => ({
+    const data: SummaryListItem[] = summaries.map((s: { id: string; title: string | null; fileName: string; summaryText: string | null; status: "PENDING" | "COMPLETED" | "FAILED"; createdAt: Date }) => ({
       id: s.id,
       title: s.title,
       fileName: s.fileName,
@@ -60,7 +60,7 @@ export async function fetchSummaries(): Promise<FetchSummariesResult> {
       data,
       message: "Summaries fetched successfully.",
     };
-  } catch (error) {
+  } catch (error: unknown) {
     console.error("fetchSummaries failed:", error);
 
     if (error instanceof Prisma.PrismaClientInitializationError) {
@@ -131,7 +131,7 @@ export async function deleteSummary(id: string): Promise<DeleteSummaryResult> {
     revalidatePath("/summaries");
 
     return { success: true, message: "Summary deleted." };
-  } catch (error) {
+  } catch (error: unknown) {
     console.error("deleteSummary failed:", error);
 
     if (error instanceof Prisma.PrismaClientKnownRequestError) {
@@ -158,7 +158,6 @@ export async function deleteSummary(id: string): Promise<DeleteSummaryResult> {
     };
   }
 }
-
 
 export type SummaryDetail = {
   id: string;
@@ -215,7 +214,7 @@ export async function getSummaryById(id: string): Promise<GetSummaryResult> {
     const { userId: _userId, ...detail } = summary;
 
     return { success: true, data: detail, message: "Summary fetched successfully." };
-  } catch (error) {
+  } catch (error: unknown) {
     console.error("getSummaryById failed:", error);
 
     if (error instanceof Prisma.PrismaClientInitializationError) {

@@ -4,9 +4,7 @@ import { fetchAndExtractPdfText } from "@/lib/langchain";
 import { z } from "zod";
 import { Prisma } from "@prisma/client";
 import { prisma } from "@/lib/prisma";
-// import { auth } from "@/lib/auth";
-// import { headers } from "next/headers";
-import { summarySchema } from "@/lib/summarySchema"; // Import your summarySchema
+import { summarySchema } from "@/lib/summarySchema";
 import { generateSummary } from "@/lib/generateSummary";
 import type { Provider } from "@/lib/modelCatalog";
 import { revalidatePath } from "next/cache";
@@ -18,14 +16,7 @@ type UploadResponse = {
   name: string;
 };
 
-type StorePdfSummaryInput = z.infer<typeof storePdfSummarySchema>;
-
-type StorePdfSummaryResult =
-  | { success: true; data: { id: string }; message: string }
-  | { success: false; data: null; message: string; code?: "LIMIT_REACHED" };
-
-
-// Accept either a string OR the structured summary object
+// Declare the Zod schema FIRST so it can be used by z.infer above
 const storePdfSummarySchema = z.object({
   originalFileUrl: z.string().url("A valid file URL is required."),
   fileName: z.string().min(1, "A file name is required."),
@@ -35,6 +26,12 @@ const storePdfSummarySchema = z.object({
   ]),
   title: z.string().optional(),
 });
+
+type StorePdfSummaryInput = z.infer<typeof storePdfSummarySchema>;
+
+type StorePdfSummaryResult =
+  | { success: true; data: { id: string }; message: string }
+  | { success: false; data: null; message: string; code?: "LIMIT_REACHED" };
 
 export async function generatePdfSummary(
   uploadResponse: UploadResponse[],
@@ -74,7 +71,7 @@ export async function generatePdfSummary(
       attempts: result.attempts,
       message: "PDF summarized successfully",
     };
-  } catch (error) {
+  } catch (error: unknown) {
     console.error("PDF summary error:", error);
 
     return {
@@ -83,7 +80,6 @@ export async function generatePdfSummary(
     };
   }
 }
-
 
 export async function storePdfSummary(
   input: StorePdfSummaryInput,
@@ -116,9 +112,8 @@ export async function storePdfSummary(
       (typeof summaryText === "string" ? undefined : summaryText.title) ??
       fileName.replace(/\.pdf$/i, "");
 
-    // claim an upload slot and save the summary atomically: if the user is
-    // out of free uploads the transaction rolls back and nothing is saved
-    const savedSummary = await prisma.$transaction(async (tx) => {
+    // claim an upload slot and save the summary atomically with typed tx client
+    const savedSummary = await prisma.$transaction(async (tx: Prisma.TransactionClient) => {
       await reserveUploadSlot(tx, sessionResult.userId);
 
       return tx.pdfSummary.create({
@@ -143,7 +138,7 @@ export async function storePdfSummary(
       data: { id: savedSummary.id },
       message: "Summary saved successfully.",
     };
-  } catch (error) {
+  } catch (error: unknown) {
     if (error instanceof UploadLimitReachedError) {
       return {
         success: false,
