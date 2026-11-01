@@ -1,7 +1,6 @@
-
 import Navbar from "./navbar";
 import { getSession } from "@/lib/getSessions";
-
+import { unstable_rethrow } from "next/navigation";
 
 export default async function NavbarWrapper() {
   let session = null;
@@ -9,9 +8,9 @@ export default async function NavbarWrapper() {
   try {
     session = await getSession();
   } catch (error) {
-    // Log real database or connection failures so you can track them
+    unstable_rethrow(error);
+
     console.error("Navbar session fetch error:", error);
-    // session remains null, but you know WHY it failed
   }
 
   return <Navbar session={session} />;
